@@ -300,7 +300,6 @@ function normalizeExpense(e){
 }
 let DB={sales:[],expenses:[],products:[],meta:{}};
 let dashboardRange='all';
-let pendingSalesImport=[];
 let undoStack=[];
 let undoTimer=null;
 
@@ -380,12 +379,14 @@ function nav(page){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active')});
-  const titles={'dashboard':'Dashboard','charts':'Diagramme','quality':'Datenqualität','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
+  const titles={'dashboard':'Dashboard','charts':'Diagramme','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
   document.getElementById('page-title').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
   if(page==='charts')renderCharts();
-  if(page==='quality')renderQuality();
   if(page==='sales')renderSalesTable();
+  if(page==='returns'){populateProductSelects();document.getElementById('cancel-alert').innerHTML=''}
+  if(page==='goals')renderGoalEditor();
+  if(page==='more'){}
   if(page==='packlist')renderPacklist();
   if(page==='expenses')renderExpenses();
   if(page==='products')renderProducts();
@@ -402,7 +403,7 @@ function ensureProduct(name,cost=0){
 }
 
 function populateProductSelects(){
-  const selects=[document.getElementById('s-product'),document.getElementById('q-product')].filter(Boolean);
+  const selects=[document.getElementById('s-product'),document.getElementById('q-product'),document.getElementById('c-product')].filter(Boolean);
   selects.forEach(select=>{
     const current=select.value;
     select.innerHTML='<option value="">Produkt wählen...</option>'+activeProducts().map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
@@ -457,9 +458,11 @@ function renumberSales(){
 
 function renderDashboard(){
   populateProductSelects();
-  renderBackupStatus();
   const allSales=DB.sales;
   const s=allSales.filter(x=>inDateRange(x)&&isActiveSale(x));
+  const todaySales=allSales.filter(x=>x.date===localDateISO()&&isActiveSale(x));
+  const todayRev=todaySales.reduce((a,x)=>a+realizedRevenue(x),0);
+  const todayProfit=todaySales.reduce((a,x)=>a+profit(x),0);
   const totalRev=s.reduce((a,x)=>a+realizedRevenue(x),0);
   const totalProfit=s.reduce((a,x)=>a+profit(x),0);
   const totalCost=s.reduce((a,x)=>a+realizedCost(x),0);
@@ -469,6 +472,18 @@ function renderDashboard(){
   const avgMargin=totalRev?((totalProfit/totalRev)*100):0;
   const expTotal=DB.expenses.filter(x=>inDateRange(x)).reduce((a,x)=>a+(x.total||0),0);
   const netProfit=totalProfit-expTotal;
+  const hero=document.getElementById('dash-hero');
+  if(hero)hero.innerHTML=`
+    <div class="hero-main">
+      <div class="hero-kicker">Heute</div>
+      <div class="hero-value">${fmt(todayRev)}</div>
+      <div class="hero-sub">${todaySales.length} Verkäufe · Gewinn ${fmt(todayProfit)}</div>
+    </div>
+    <div class="hero-stats">
+      <div><span>Offen</span><strong>${openSales.length}</strong></div>
+      <div><span>Zeitraum</span><strong>${s.length}</strong></div>
+      <div><span>Gewinn</span><strong>${fmt(totalProfit)}</strong></div>
+    </div>`;
 
   document.getElementById('dash-metrics').innerHTML=`
     <div class="metric"><div class="metric-label"><i class="ti ti-cash" style="font-size:14px" aria-hidden="true"></i> Umsatz</div><div class="metric-value">${fmt(totalRev)}</div><div class="metric-sub">${rangeLabel()} · ${s.length} Verkäufe</div></div>
@@ -513,35 +528,8 @@ function renderDashboard(){
   document.getElementById('recent-table').innerHTML=salesTableHTML(recent);
   renderMonthReport();
   renderGoalProgress(totalRev,totalProfit);
-  renderSnapshots();
   renderPriceInsights();
   renderStockOverview();
-  renderDataIssues();
-}
-
-function renderSnapshots(){
-  const target=document.getElementById('snapshot-list');
-  if(!target)return;
-  const snapshots=DB.snapshots||[];
-  if(!snapshots.length){
-    target.innerHTML='<div class="empty" style="padding:1rem">Noch keine automatischen Sicherungspunkte.</div>';
-    return;
-  }
-  target.innerHTML=`<div class="snapshot-list">${snapshots.slice(0,5).map(s=>`
-    <div class="snapshot-item">
-      <span class="muted">${snapshotLabel(s)}</span>
-      <button class="btn" onclick="restoreSnapshot(${s.id})">Wiederherstellen</button>
-    </div>`).join('')}</div>`;
-}
-
-function renderBackupStatus(){
-  const target=document.getElementById('backup-status');
-  if(!target)return;
-  const last=DB.meta?.lastBackupAt;
-  if(!last){target.textContent='Letztes Backup: nie';return}
-  const days=Math.floor((new Date()-new Date(last))/86400000);
-  target.textContent=days<=0?'Letztes Backup: heute':`Letztes Backup: vor ${days} Tag${days===1?'':'en'}`;
-  target.style.color=days>7?'var(--amber-text)':'var(--text3)';
 }
 
 function monthKey(){return localDateISO().slice(0,7)}
@@ -569,7 +557,6 @@ function renderMonthReport(){
   const prof=sales.reduce((a,s)=>a+profit(s),0);
   const exp=expenses.reduce((a,e)=>a+(e.total||0),0);
   const open=sales.filter(s=>s.status==='offen');
-  const best=[...sales].sort((a,b)=>profit(b)-profit(a))[0];
   document.getElementById('month-label').textContent=monthName(key);
   document.getElementById('month-report').innerHTML=`<div class="summary-list">
     <div class="summary-row"><span>Umsatz</span><strong>${fmt(rev)}</strong></div>
@@ -577,7 +564,6 @@ function renderMonthReport(){
     <div class="summary-row"><span>Einkaufsausgaben</span><strong class="profit-neg">${fmt(exp)}</strong></div>
     <div class="summary-row"><span>Cashflow</span><strong class="${prof-exp>=0?'profit-pos':'profit-neg'}">${fmt(prof-exp)}</strong></div>
     <div class="summary-row"><span>Verkäufe / offen</span><strong>${sales.length} / ${open.length}</strong></div>
-    <div class="summary-row"><span>Bester Verkauf</span><strong>${best?esc(cat(best.art))+' '+fmt(profit(best)):'—'}</strong></div>
   </div>`;
 }
 
@@ -588,10 +574,34 @@ function monthlyActiveSales(){
 function saveGoals(){
   DB.meta=DB.meta||{};
   DB.meta.goals=DB.meta.goals||{};
-  DB.meta.goals[monthKey()]={revenue:+document.getElementById('goal-revenue').value||0,profit:+document.getElementById('goal-profit').value||0};
+  const current=DB.meta.goals[monthKey()]||{revenue:0,profit:0};
+  const revInput=document.getElementById('goal-revenue');
+  const profInput=document.getElementById('goal-profit');
+  DB.meta.goals[monthKey()]={revenue:revInput?+revInput.value||0:current.revenue||0,profit:profInput?+profInput.value||0:current.profit||0};
   saveData();
   const sales=DB.sales.filter(s=>inDateRange(s)&&isActiveSale(s));
   renderGoalProgress(sales.reduce((a,s)=>a+realizedRevenue(s),0),sales.reduce((a,s)=>a+profit(s),0));
+  renderGoalEditor();
+}
+
+function renderGoalEditor(){
+  const goals=DB.meta?.goals?.[monthKey()]||{revenue:0,profit:0};
+  const days=daysInMonth();
+  const setText=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value?fmt(value):'—'};
+  const revInput=document.getElementById('goal-revenue');
+  const profInput=document.getElementById('goal-profit');
+  if(revInput&&document.activeElement!==revInput)revInput.value=goals.revenue||'';
+  if(profInput&&document.activeElement!==profInput)profInput.value=goals.profit||'';
+  setText('goal-day-revenue',goals.revenue/days);
+  setText('goal-day-profit',goals.profit/days);
+  setText('goal-week-revenue',goals.revenue/days*7);
+  setText('goal-week-profit',goals.profit/days*7);
+  setText('goal-month-revenue',goals.revenue);
+  setText('goal-month-profit',goals.profit);
+  const setBar=(id,value,max)=>{const el=document.getElementById(id);if(el)el.style.width=(max?Math.min(100,(value/max)*100):0)+'%'};
+  setBar('goal-day-bar',goals.revenue/days,goals.revenue);
+  setBar('goal-week-bar',goals.revenue/days*7,goals.revenue);
+  setBar('goal-month-bar',goals.revenue,goals.revenue);
 }
 
 function renderGoalProgress(rev,prof){
@@ -601,10 +611,6 @@ function renderGoalProgress(rev,prof){
   const period=goalPeriod();
   const revenueTarget=goals.revenue?goals.revenue*period.factor:0;
   const profitTarget=goals.profit?goals.profit*period.factor:0;
-  const revInput=document.getElementById('goal-revenue');
-  const profInput=document.getElementById('goal-profit');
-  if(revInput&&document.activeElement!==revInput)revInput.value=goals.revenue||'';
-  if(profInput&&document.activeElement!==profInput)profInput.value=goals.profit||'';
   const revPct=revenueTarget?Math.min(100,(rev/revenueTarget)*100):0;
   const profPct=profitTarget?Math.min(100,(prof/profitTarget)*100):0;
   target.innerHTML=`<div class="summary-list">
@@ -692,63 +698,6 @@ function renderStockOverview(){
   }).join('')}</div>`;
 }
 
-function dataIssues(){
-  const issues=[];
-  saleQualityIssues().forEach(i=>issues.push(`Verkauf #${i.sale.id}: ${i.text}`));
-  const typos=DB.sales.filter(s=>s.art.includes('Moanco'));
-  if(typos.length)issues.push(`${typos.length} Produktnamen enthalten vermutlich "Moanco" statt "Monaco".`);
-  const last=DB.meta?.lastBackupAt;
-  if(!last)issues.push('Es wurde noch kein Backup exportiert.');
-  if(last&&Math.floor((new Date()-new Date(last))/86400000)>7)issues.push('Das letzte Backup ist älter als 7 Tage.');
-  const bought=DB.expenses.filter(e=>e.kind!=='sonstige').reduce((map,e)=>{map[e.product]=(map[e.product]||0)+(e.qty||0);return map},{});
-  const sold=soldUnitsByType();
-  Object.keys(sold).forEach(type=>{
-    const left=(bought[type]||0)-sold[type];
-    if(left<0)issues.push(`${type}: rechnerisch ${Math.abs(left)} Stück mehr verkauft als eingekauft.`);
-    if(left>=0&&left<=3&&bought[type])issues.push(`${type}: nur noch ${left} Stück auf Lager.`);
-  });
-  return issues.slice(0,8);
-}
-
-function saleQualityIssues(){
-  const issues=[];
-  const seen=new Map();
-  DB.sales.forEach(s=>{
-    if(s.ship&&new Date(s.ship)<new Date(s.date))issues.push({sale:s,type:'date',severity:'high',text:`Versanddatum ${fmtDate(s.ship)} liegt vor Verkaufsdatum ${fmtDate(s.date)}.`});
-    if(s.rev<=0&&isActiveSale(s))issues.push({sale:s,type:'revenue',severity:'high',text:'Umsatz fehlt oder ist 0.'});
-    if(s.cost<0)issues.push({sale:s,type:'cost',severity:'high',text:'Rohlingkosten sind negativ.'});
-    if(isActiveSale(s)&&s.rev>0&&margin(s)<30)issues.push({sale:s,type:'margin',severity:'medium',text:`Marge nur ${margin(s).toFixed(1)}%.`});
-    if(s.status==='offen'&&!s.note)issues.push({sale:s,type:'note',severity:'low',text:'Offener Verkauf ohne Notiz.'});
-    const key=[s.date,s.art,s.rev,s.cost].join('|');
-    if(seen.has(key))issues.push({sale:s,type:'duplicate',severity:'medium',text:`Möglicher Doppelverkauf wie #${seen.get(key)}.`});
-    else seen.set(key,s.id);
-  });
-  return issues;
-}
-
-function renderQuality(){
-  const issues=saleQualityIssues();
-  const high=issues.filter(i=>i.severity==='high').length;
-  const medium=issues.filter(i=>i.severity==='medium').length;
-  const low=issues.filter(i=>i.severity==='low').length;
-  document.getElementById('quality-metrics').innerHTML=`
-    <div class="quality-item"><div class="muted">Kritisch</div><div class="quality-value" style="color:var(--red)">${high}</div></div>
-    <div class="quality-item"><div class="muted">Prüfen</div><div class="quality-value" style="color:var(--amber)">${medium}</div></div>
-    <div class="quality-item"><div class="muted">Hinweise</div><div class="quality-value">${low}</div></div>
-    <div class="quality-item"><div class="muted">Gesamt</div><div class="quality-value">${issues.length}</div></div>`;
-  const target=document.getElementById('quality-list');
-  if(!issues.length){target.innerHTML='<div class="empty">Keine auffälligen Einträge gefunden.</div>';return}
-  const unique=[...new Map(issues.map(i=>[i.sale.id,i.sale])).values()];
-  target.innerHTML=salesTableHTML(unique);
-}
-
-function renderDataIssues(){
-  const target=document.getElementById('data-issues');
-  if(!target)return;
-  const issues=dataIssues();
-  target.innerHTML=issues.length?`<div class="issue-list">${issues.map(i=>`<div class="issue"><i class="ti ti-alert-triangle" aria-hidden="true"></i><span>${i}</span></div>`).join('')}</div>`:'<div class="empty" style="padding:1rem">Keine offensichtlichen Datenprobleme gefunden.</div>';
-}
-
 function getWeek(d){const jan=new Date(d.getFullYear(),0,1);const wk=Math.ceil((((d-jan)/86400000)+jan.getDay()+1)/7);return d.getFullYear()+'-W'+(wk<10?'0'+wk:wk)}
 
 function salesTableActionsHTML(s,{deleteText=false,showDuplicate=true}={}){
@@ -773,18 +722,18 @@ function salesTableHTML(rows,options={}){
       <td><span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span></td>
       <td>${salesTableActionsHTML(s,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false})}</td>
     </tr>`).join('')}</tbody></table>`;
-  return table;
+  return table+salesCardsHTML(rows,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false});
 }
 
-function salesActionsHTML(s,{deleteText=false}={}){
-  return `<div class="action-row">${s.status==='offen'?`<button class="btn btn-primary" onclick="markSaleShipped(${s.id})"><i class="ti ti-package-export"></i> Versendet</button>`:''}<button class="btn" onclick="duplicateSale(${s.id})"><i class="ti ti-copy"></i></button><button class="btn" onclick="editSale(${s.id})"><i class="ti ti-pencil"></i></button><button class="btn btn-danger" onclick="deleteSale(${s.id})"><i class="ti ti-trash"></i>${deleteText?' Löschen':''}</button></div>`;
+function salesActionsHTML(s,{deleteText=false,showDuplicate=true}={}){
+  return `<div class="action-row">${s.status==='offen'?`<button class="btn btn-primary" onclick="markSaleShipped(${s.id})"><i class="ti ti-package-export"></i> Versendet</button>`:''}${showDuplicate?`<button class="btn" onclick="duplicateSale(${s.id})"><i class="ti ti-copy"></i></button>`:''}<button class="btn" onclick="editSale(${s.id})"><i class="ti ti-pencil"></i></button><button class="btn btn-danger" onclick="deleteSale(${s.id})"><i class="ti ti-trash"></i>${deleteText?' Löschen':''}</button></div>`;
 }
 
-function salesCardsHTML(rows){
+function salesCardsHTML(rows,options={}){
   return `<div class="mobile-list">${rows.map(s=>`
     <div class="sale-card">
       <div class="sale-card-head">
-        <div><div class="sale-card-title">#${s.id} · ${esc(cat(s.art))}</div><div class="sale-card-meta">${fmtDate(s.date)} · Ausführung ${fmtDate(s.ship)}${s.note?' · '+esc(s.note):''}</div></div>
+        <div><button class="id-link" onclick="editSale(${s.id})">#${s.id}</button><div class="sale-card-title">${esc(s.art)}</div><div class="sale-card-meta">${fmtDate(s.date)} · Ausführung ${fmtDate(s.ship)}${s.note?' · '+esc(s.note):''}</div></div>
         <span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span>
       </div>
       <div class="sale-card-grid">
@@ -792,7 +741,7 @@ function salesCardsHTML(rows){
         <div class="sale-card-stat"><span>Gewinn</span>${fmt(profit(s))}</div>
         <div class="sale-card-stat"><span>Marge</span>${margin(s).toFixed(1)}%</div>
       </div>
-      ${salesActionsHTML(s)}
+      ${salesActionsHTML(s,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false})}
     </div>`).join('')}</div>`;
 }
 
@@ -803,7 +752,6 @@ function renderSalesTable(){
   const from=(document.getElementById('filter-from')||{}).value||'';
   const to=(document.getElementById('filter-to')||{}).value||'';
   const special=(document.getElementById('filter-special')||{}).value||'';
-  const issueIds=new Set(saleQualityIssues().map(i=>i.sale.id));
 
   // populate category filter
   const catEl=document.getElementById('filter-cat');
@@ -822,7 +770,6 @@ function renderSalesTable(){
     if(statusF&&s.status!==statusF)return false;
     if(special==='low-margin'&&!(isActiveSale(s)&&margin(s)<30))return false;
     if(special==='missing-note'&&s.note)return false;
-    if(special==='issues'&&!issueIds.has(s.id))return false;
     return true;
   });
   const cnt=document.getElementById('sales-count');
@@ -1094,6 +1041,47 @@ function quickAddSale(){
   renderDashboard();
 }
 
+function cancelMatchingSale(){
+  const art=cleanProductName(document.getElementById('c-product').value);
+  const rev=parseFloat(document.getElementById('c-revenue').value);
+  const alert=document.getElementById('cancel-alert');
+  if(!art||isNaN(rev)||rev<=0){
+    alert.innerHTML='<div class="alert" style="background:var(--red-bg);color:var(--red-text)">Bitte Produkt und Storno-Betrag ausfüllen.</div>';
+    return;
+  }
+  const matches=DB.sales
+    .filter(s=>isActiveSale(s)&&cleanProductName(s.art).toLowerCase()===art.toLowerCase()&&Math.abs((s.rev||0)-rev)<0.01)
+    .sort(sortSalesNewest);
+  if(!matches.length){
+    alert.innerHTML='<div class="alert" style="background:var(--amber-bg);color:var(--amber-text)">Kein passender Verkauf mit diesem Produkt und Betrag gefunden.</div>';
+    return;
+  }
+  if(matches.length>1){
+    alert.innerHTML=`<div class="alert" style="background:var(--amber-bg);color:var(--amber-text)">Mehrere passende Verkäufe gefunden. Bitte den richtigen auswählen.</div>
+      <div class="return-choice-list">${matches.map(s=>`
+        <button class="return-choice" onclick="cancelSaleById(${s.id})">
+          <span><strong>#${s.id} · ${esc(s.art)}</strong><br><span class="muted">${fmtDate(s.date)} · ${statusLabel(s.status)}${s.note?' · '+esc(s.note):''}</span></span>
+          <strong>${fmt(s.rev)}</strong>
+        </button>`).join('')}</div>`;
+    return;
+  }
+  cancelSaleById(matches[0].id);
+}
+
+function cancelSaleById(id){
+  const sale=DB.sales.find(s=>s.id===id);
+  if(!sale)return;
+  if(!confirm(`Passenden Verkauf stornieren und löschen?\n\n#${sale.id} · ${sale.art} · ${fmt(sale.rev)} · ${fmtDate(sale.date)}`))return;
+  const alert=document.getElementById('cancel-alert');
+  const before=cloneData();
+  DB.sales=DB.sales.filter(s=>s.id!==sale.id);
+  renumberSales();
+  commitChange('Storno verbucht',()=>{},before);
+  document.getElementById('c-revenue').value='';
+  alert.innerHTML=`<div class="alert alert-success">Storno gebucht. Verkauf #${sale.id} wurde entfernt.</div>`;
+  renderDashboard();
+}
+
 function renderProducts(){
   populateProductSelects();
   const target=document.getElementById('products-table');
@@ -1234,146 +1222,6 @@ function renderCharts(){
       {label:'Ø Verkaufspreis',data:prods.map(p=>+avgRev(p).toFixed(2)),backgroundColor:'#1D9E75'},
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'€'+v}}}}});
   }
-}
-
-function csvCell(value){
-  const text=String(value??'');
-  return /[",\n;]/.test(text)?'"'+text.replace(/"/g,'""')+'"':text;
-}
-
-function exportCSV(){
-  const hdr=['#','Datum','Ausführdatum','Produkt','Kategorie','Notiz','Umsatz','Rohling','Gewinn','Marge','Status'];
-  const rows=DB.sales.map(s=>[s.id,s.date,s.ship||'',s.art,cat(s.art),s.note||'',s.rev.toFixed(2),s.cost.toFixed(2),profit(s).toFixed(2),margin(s).toFixed(1)+'%',statusLabel(s.status)]);
-  const csv=[hdr,...rows].map(row=>row.map(csvCell).join(';')).join('\n');
-  downloadFile('vinted-verkaeufe-'+filenameDate()+'.csv','text/csv;charset=utf-8;','\ufeff'+csv);
-}
-
-function exportPacklistCSV(){
-  const hdr=['#','Datum','Produkt','Notiz','Umsatz','Rohling'];
-  const rows=DB.sales.filter(s=>s.status==='offen').sort((a,b)=>new Date(a.date)-new Date(b.date)).map(s=>[s.id,s.date,s.art,s.note||'',s.rev.toFixed(2),s.cost.toFixed(2)]);
-  const csv=[hdr,...rows].map(row=>row.map(csvCell).join(';')).join('\n');
-  downloadFile('vinted-packliste-'+filenameDate()+'.csv','text/csv;charset=utf-8;','\ufeff'+csv);
-}
-
-function parseCSV(text){
-  const rows=[];let row=[];let cell='';let quote=false;
-  text.replace(/^\ufeff/,'').split('').forEach((ch,i,arr)=>{
-    if(ch==='"'&&quote&&arr[i+1]==='"'){cell+='"';arr[i+1]='';return}
-    if(ch==='"'){quote=!quote;return}
-    if((ch===';'||ch===',')&&!quote){row.push(cell);cell='';return}
-    if((ch==='\n'||ch==='\r')&&!quote){
-      if(ch==='\r'&&arr[i+1]==='\n')return;
-      row.push(cell); if(row.some(v=>v!==''))rows.push(row); row=[]; cell=''; return;
-    }
-    cell+=ch;
-  });
-  row.push(cell); if(row.some(v=>v!==''))rows.push(row);
-  return rows;
-}
-
-function parseNumber(value){
-  const n=parseFloat(String(value||'').replace('%','').replace(',','.'));
-  return isNaN(n)?0:n;
-}
-
-function importSalesCSV(event){
-  const file=event.target.files&&event.target.files[0];
-  event.target.value='';
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const rows=parseCSV(reader.result);
-    if(rows.length<2){alert('CSV enthält keine Verkäufe.');return}
-    const header=rows[0].map(h=>h.trim().toLowerCase());
-    const idx=name=>header.indexOf(name.toLowerCase());
-    const get=(r,name,fallback='')=>{const i=idx(name);return i>=0?r[i]:fallback};
-    const nextIdStart=Math.max(0,...DB.sales.map(s=>s.id))+1;
-    pendingSalesImport=rows.slice(1).map((r,i)=>{
-      const art=get(r,'Produkt',r[3]||'Sonstiges');
-      const statusText=(get(r,'Status','offen')).toLowerCase();
-      const status=statusText.includes('storno')?'storniert':statusText.includes('retour')?'retour':statusText.includes('vers')?'versendet':'offen';
-      const sale=normalizeSale({
-        id:nextIdStart+i,
-        date:get(r,'Datum',localDateISO()),
-        ship:get(r,'Ausführdatum',null)||null,
-        art,
-        note:get(r,'Notiz','CSV Import'),
-        rev:parseNumber(get(r,'Umsatz')),
-        cost:parseNumber(get(r,'Rohling')),
-        status
-      });
-      const errors=[];
-      if(!sale.date)errors.push('Datum fehlt');
-      if(!sale.art)errors.push('Produkt fehlt');
-      if(sale.rev<=0&&isActiveSale(sale))errors.push('Umsatz fehlt');
-      return {sale,errors};
-    }).filter(x=>x.sale.art||x.sale.date);
-    if(!pendingSalesImport.length){alert('Keine importierbaren Verkäufe gefunden.');return}
-    renderImportPreview();
-  };
-  reader.readAsText(file);
-}
-
-function renderImportPreview(){
-  const valid=pendingSalesImport.filter(x=>!x.errors.length).length;
-  const errors=pendingSalesImport.length-valid;
-  document.getElementById('import-summary').textContent=`${pendingSalesImport.length} Zeilen erkannt · ${valid} importierbar · ${errors} mit Fehlern`;
-  document.getElementById('import-preview').innerHTML=`<table><thead><tr><th>#</th><th>Datum</th><th>Produkt</th><th>Umsatz</th><th>Rohling</th><th>Status</th><th>Hinweis</th></tr></thead><tbody>${pendingSalesImport.map(({sale,errors})=>`
-    <tr class="${errors.length?'row-error':''}"><td>${sale.id}</td><td>${fmtDate(sale.date)}</td><td>${esc(sale.art)}</td><td>${fmt(sale.rev)}</td><td>${fmt(sale.cost)}</td><td>${statusLabel(sale.status)}</td><td>${errors.join(', ')||'OK'}</td></tr>
-  `).join('')}</tbody></table>`;
-  document.getElementById('import-modal').classList.add('open');
-}
-
-function closeImportPreview(){
-  pendingSalesImport=[];
-  document.getElementById('import-modal').classList.remove('open');
-}
-
-function confirmSalesImport(){
-  const imports=pendingSalesImport.filter(x=>!x.errors.length).map(x=>x.sale);
-  if(!imports.length){alert('Keine gültigen Zeilen zum Importieren.');return}
-  const before=cloneData();
-  imports.forEach(s=>ensureProduct(s.art,s.cost));
-  DB.sales.push(...imports);
-  renumberSales();
-  commitChange('CSV importiert',()=>{},before);
-  closeImportPreview();
-  renderDashboard();
-  nav('sales');
-}
-
-function exportBackup(){
-  DB.meta=DB.meta||{};
-  DB.meta.lastBackupAt=new Date().toISOString();
-  saveData();
-  const backup={version:3,exportedAt:DB.meta.lastBackupAt,sales:DB.sales,expenses:DB.expenses,products:DB.products,meta:DB.meta};
-  downloadFile('vinted-backup-'+filenameDate()+'.json','application/json;charset=utf-8;',JSON.stringify(backup,null,2));
-  renderBackupStatus();
-}
-
-function importBackup(event){
-  const file=event.target.files&&event.target.files[0];
-  event.target.value='';
-  if(!file)return;
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const incoming=safeJSON(reader.result,null);
-    if(!incoming||!Array.isArray(incoming.sales)){
-      alert('Diese Datei sieht nicht wie ein Vinted-Backup aus.');
-      return;
-    }
-    const sales=incoming.sales.map(normalizeSale);
-    const expenses=Array.isArray(incoming.expenses)?incoming.expenses.map(normalizeExpense):[];
-    const products=Array.isArray(incoming.products)?incoming.products.map(normalizeProduct):DB.products;
-    if(!confirm(`${sales.length} Verkäufe und ${expenses.length} Ausgaben importieren? Die aktuellen lokalen Daten werden ersetzt.`))return;
-    const before=cloneData();
-    DB={sales,expenses,products,meta:incoming.meta||{},snapshots:DB.snapshots||[]};
-    renumberSales();
-    commitChange('Backup importiert',()=>{},before);
-    renderDashboard();
-    nav('dashboard');
-  };
-  reader.readAsText(file);
 }
 
 async function initApp(){

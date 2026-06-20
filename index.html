@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a6b4a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Vinted">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Vinted Tracker</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="./styles.css">
@@ -17,36 +24,30 @@
     </div>
     <div class="section-label">Übersicht</div>
     <div class="nav-item active" onclick="nav('dashboard')"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
-    <div class="nav-item" onclick="nav('charts')"><i class="ti ti-chart-bar"></i> Diagramme</div>
-    <div class="nav-item" onclick="nav('quality')"><i class="ti ti-shield-check"></i> Datencheck</div>
+    <div class="nav-item nav-extra" onclick="nav('charts')"><i class="ti ti-chart-bar"></i> Diagramme</div>
     <div class="section-label">Verkäufe</div>
     <div class="nav-item" onclick="nav('sales')"><i class="ti ti-package"></i> Alle Verkäufe</div>
     <div class="nav-item" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</div>
-    <div class="nav-item" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i> Packliste</div>
+    <div class="nav-item" onclick="nav('returns')"><i class="ti ti-receipt-refund"></i> Retoure</div>
+    <div class="nav-item nav-extra" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i> Packliste</div>
     <div class="section-label">Kosten</div>
-    <div class="nav-item" onclick="nav('expenses')"><i class="ti ti-receipt"></i> Rohlingskosten</div>
-    <div class="nav-item" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i> Neue Ausgabe</div>
+    <div class="nav-item nav-extra" onclick="nav('expenses')"><i class="ti ti-receipt"></i> Rohlingskosten</div>
+    <div class="nav-item nav-extra" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i> Neue Ausgabe</div>
     <div class="section-label">Stammdaten</div>
-    <div class="nav-item" onclick="nav('products')"><i class="ti ti-tags"></i> Produkte</div>
+    <div class="nav-item nav-extra" onclick="nav('products')"><i class="ti ti-tags"></i> Produkte</div>
+    <div class="nav-item nav-more" onclick="nav('more')"><i class="ti ti-dots"></i> Mehr</div>
   </aside>
 
   <div class="main">
     <div class="topbar">
       <h2 id="page-title">Dashboard</h2>
-      <div class="toolbar">
-        <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
-        <button class="btn" onclick="exportBackup()"><i class="ti ti-database-export"></i> Backup</button>
-        <button class="btn" onclick="document.getElementById('import-file').click()"><i class="ti ti-database-import"></i> Import</button>
-        <button class="btn" onclick="document.getElementById('import-sales-file').click()"><i class="ti ti-file-import"></i> CSV Import</button>
-        <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
-        <input type="file" id="import-sales-file" accept=".csv,text/csv" style="display:none" onchange="importSalesCSV(event)">
-      </div>
     </div>
 
     <div class="content">
 
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page active">
+        <div class="dashboard-hero" id="dash-hero"></div>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
           <div class="segmented" id="dash-range">
             <button data-range="all" class="active" onclick="setDashboardRange('all')">Alles</button>
@@ -54,26 +55,14 @@
             <button data-range="7d" onclick="setDashboardRange('7d')">7 Tage</button>
             <button data-range="month" onclick="setDashboardRange('month')">Monat</button>
           </div>
-          <div class="muted" id="backup-status"></div>
         </div>
         <div class="metric-grid" id="dash-metrics"></div>
         <div class="card" id="dash-goals-card">
-          <div class="card-title">Monatsziel</div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Umsatzziel (€)</label>
-              <input type="number" id="goal-revenue" step="1" placeholder="0" oninput="saveGoals()">
-            </div>
-            <div class="form-group">
-              <label>Gewinnziel (€)</label>
-              <input type="number" id="goal-profit" step="1" placeholder="0" oninput="saveGoals()">
-            </div>
+          <div class="card-title">
+            Ziele
+            <button class="btn" onclick="nav('goals')"><i class="ti ti-adjustments"></i> Ziele anpassen</button>
           </div>
           <div id="goal-progress"></div>
-        </div>
-        <div class="card" id="dash-snapshots-card">
-          <div class="card-title">Sicherungspunkte</div>
-          <div id="snapshot-list"></div>
         </div>
         <div class="card" id="dash-quick-card">
           <div class="card-title">Schnell-Erfassung</div>
@@ -128,10 +117,78 @@
             <div class="card-title">Bestand nach Rohlingstyp</div>
             <div id="stock-overview"></div>
           </div>
-          <div class="card">
-            <div class="card-title">Datencheck</div>
-            <div id="data-issues"></div>
+        </div>
+      </div>
+
+      <!-- RETOURE -->
+      <div id="page-returns" class="page">
+        <div class="card cancel-card">
+          <div class="card-title">Storno verbuchen</div>
+          <div id="cancel-alert"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Produkt</label>
+              <select id="c-product"></select>
+            </div>
+            <div class="form-group">
+              <label>Storno-Betrag (€)</label>
+              <input type="number" id="c-revenue" step="0.01" placeholder="0.00">
+            </div>
           </div>
+          <button class="btn btn-danger" onclick="cancelMatchingSale()"><i class="ti ti-receipt-refund"></i> Passenden Verkauf stornieren</button>
+        </div>
+      </div>
+
+      <!-- ZIELE -->
+      <div id="page-goals" class="page">
+        <div class="card" style="max-width:640px">
+          <div class="card-title">Ziele anpassen</div>
+          <div class="goal-editor-grid">
+            <div class="goal-editor-item">
+              <div class="muted">Tag</div>
+              <div class="summary-row"><span>Umsatz</span><strong id="goal-day-revenue">—</strong></div>
+              <div class="summary-row"><span>Gewinn</span><strong id="goal-day-profit">—</strong></div>
+              <div class="progress"><div class="progress-bar" id="goal-day-bar"></div></div>
+            </div>
+            <div class="goal-editor-item">
+              <div class="muted">7 Tage</div>
+              <div class="summary-row"><span>Umsatz</span><strong id="goal-week-revenue">—</strong></div>
+              <div class="summary-row"><span>Gewinn</span><strong id="goal-week-profit">—</strong></div>
+              <div class="progress"><div class="progress-bar" id="goal-week-bar"></div></div>
+            </div>
+            <div class="goal-editor-item">
+              <div class="muted">Monat</div>
+              <div class="summary-row"><span>Umsatz</span><strong id="goal-month-revenue">—</strong></div>
+              <div class="summary-row"><span>Gewinn</span><strong id="goal-month-profit">—</strong></div>
+              <div class="progress"><div class="progress-bar" id="goal-month-bar"></div></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Monats-Umsatzziel (€)</label>
+              <input type="number" id="goal-revenue" step="1" placeholder="0" oninput="saveGoals()">
+            </div>
+            <div class="form-group">
+              <label>Monats-Gewinnziel (€)</label>
+              <input type="number" id="goal-profit" step="1" placeholder="0" oninput="saveGoals()">
+            </div>
+          </div>
+          <div class="inline-actions">
+            <button class="btn btn-primary" onclick="saveGoals();nav('dashboard')"><i class="ti ti-check"></i> Speichern</button>
+            <button class="btn" onclick="nav('dashboard')">Zurück</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MEHR -->
+      <div id="page-more" class="page">
+        <div class="more-grid">
+          <button class="more-tile" onclick="nav('charts')"><i class="ti ti-chart-bar"></i><span>Diagramme</span></button>
+          <button class="more-tile" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i><span>Packliste</span></button>
+          <button class="more-tile" onclick="nav('expenses')"><i class="ti ti-receipt"></i><span>Rohlingskosten</span></button>
+          <button class="more-tile" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i><span>Neue Ausgabe</span></button>
+          <button class="more-tile" onclick="nav('products')"><i class="ti ti-tags"></i><span>Produkte</span></button>
+          <button class="more-tile" onclick="nav('goals')"><i class="ti ti-adjustments"></i><span>Ziele</span></button>
         </div>
       </div>
 
@@ -192,21 +249,11 @@
             <option value="">Alle Einträge</option>
             <option value="low-margin">Marge unter 30%</option>
             <option value="missing-note">Ohne Notiz</option>
-            <option value="issues">Mit Datenfehler</option>
           </select>
           <span style="font-size:12px;color:var(--text3)" id="sales-count"></span>
         </div>
         <div class="card" style="padding:0">
           <div class="table-wrap" id="sales-table"></div>
-        </div>
-      </div>
-
-      <!-- DATENQUALITÄT -->
-      <div id="page-quality" class="page">
-        <div class="quality-grid" id="quality-metrics"></div>
-        <div class="card">
-          <div class="card-title">Auffällige Einträge</div>
-          <div id="quality-list"></div>
         </div>
       </div>
 
@@ -294,22 +341,8 @@
           <div class="card-title">Packliste</div>
           <div class="inline-actions" style="margin-bottom:1rem">
             <button class="btn" onclick="window.print()"><i class="ti ti-printer"></i> Drucken</button>
-            <button class="btn" onclick="exportPacklistCSV()"><i class="ti ti-download"></i> CSV</button>
           </div>
           <div id="packlist"></div>
-        </div>
-      </div>
-
-      <!-- CSV IMPORT VORSCHAU -->
-      <div id="import-modal" class="modal-overlay">
-        <div class="modal" style="width:760px">
-          <div class="modal-title">CSV-Import prüfen <button class="close-btn" onclick="closeImportPreview()">×</button></div>
-          <div id="import-summary" class="muted" style="margin-bottom:12px"></div>
-          <div id="import-preview" class="import-preview"></div>
-          <div class="inline-actions" style="margin-top:1rem;justify-content:flex-end">
-            <button class="btn" onclick="closeImportPreview()">Abbrechen</button>
-            <button class="btn btn-primary" onclick="confirmSalesImport()"><i class="ti ti-file-import"></i> Importieren</button>
-          </div>
         </div>
       </div>
 
@@ -419,6 +452,8 @@
   <button class="btn btn-primary" onclick="undoLastChange()">Rückgängig</button>
   <button class="close-btn" onclick="hideUndoBar()">×</button>
 </div>
+
+<button class="fab" onclick="nav('new-sale')" aria-label="Neuen Verkauf erfassen"><i class="ti ti-plus"></i></button>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
