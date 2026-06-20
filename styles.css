@@ -175,3 +175,13 @@
     #dash-charts-row{order:9}
     .undo-bar{left:12px;right:12px;bottom:70px;align-items:flex-start}
   }
+
+/* Firebase Login */
+#firebase-auth-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:none;align-items:center;justify-content:center;padding:18px}
+.firebase-auth-card{width:420px;max-width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.firebase-auth-card h2{font-size:20px;margin-bottom:8px;color:var(--text)}
+.firebase-auth-card p{font-size:13px;color:var(--text2);margin-bottom:16px}
+.firebase-auth-card input{margin-bottom:10px}
+.firebase-auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+#firebase-auth-error{font-size:13px;color:var(--red-text);background:var(--red-bg);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;display:none}
+#firebase-auth-error:not(:empty){display:block}
