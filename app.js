@@ -341,6 +341,7 @@ function showUndoBar(label){
   if(!bar)return;
   document.getElementById('undo-text').textContent=`${label} gespeichert`;
   bar.classList.add('open');
+  appToast(`${label} gespeichert`);
   clearTimeout(undoTimer);
   undoTimer=setTimeout(hideUndoBar,8000);
 }
@@ -374,17 +375,85 @@ function restoreSnapshot(id){
 let charts={};
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id]}}
 
+function emptyState(icon,title,text,actionHTML=''){
+  return `<div class="empty-state"><i class="ti ${icon}" aria-hidden="true"></i><strong>${title}</strong><p>${text}</p>${actionHTML}</div>`;
+}
+
+function hideSplash(){
+  const splash=document.getElementById('app-splash');
+  if(splash)setTimeout(()=>splash.classList.add('hide'),260);
+}
+
+function animatePage(page){
+  const el=document.getElementById('page-'+page);
+  if(!el)return;
+  el.classList.remove('page-enter');
+  void el.offsetWidth;
+  el.classList.add('page-enter');
+  animateVisibleContent(el);
+}
+
+function animateVisibleContent(scope=document){
+  requestAnimationFrame(()=>{
+    const items=[...scope.querySelectorAll('.card,.metric,.sale-card,.open-sale,.more-tile,.stock-item,.report-metrics div')].slice(0,28);
+    items.forEach((el,i)=>{
+      el.classList.remove('stagger-in');
+      el.style.animationDelay=(i*28)+'ms';
+      void el.offsetWidth;
+      el.classList.add('stagger-in');
+    });
+  });
+}
+
+function appToast(message,icon='ti-check'){
+  document.querySelectorAll('.app-toast').forEach(t=>t.remove());
+  const toast=document.createElement('div');
+  toast.className='app-toast';
+  toast.innerHTML=`<i class="ti ${icon}" aria-hidden="true"></i><span>${esc(message)}</span>`;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.classList.add('hide'),1800);
+  setTimeout(()=>toast.remove(),2150);
+}
+
+function flashNewestCard(selector){
+  requestAnimationFrame(()=>{
+    const item=document.querySelector(selector);
+    if(!item)return;
+    item.classList.remove('just-added');
+    void item.offsetWidth;
+    item.classList.add('just-added');
+  });
+}
+
+function initAppFeel(){
+  document.addEventListener('click',e=>{
+    const target=e.target.closest('.btn,.nav-item,.more-tile,.tab,.id-link');
+    if(!target||target.disabled)return;
+    const rect=target.getBoundingClientRect();
+    const ripple=document.createElement('span');
+    const size=Math.max(rect.width,rect.height);
+    ripple.className='ripple';
+    ripple.style.width=ripple.style.height=size+'px';
+    ripple.style.left=(e.clientX-rect.left-size/2)+'px';
+    ripple.style.top=(e.clientY-rect.top-size/2)+'px';
+    target.appendChild(ripple);
+    ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
+  });
+
+}
+
 function nav(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active')});
-  const morePages=['charts','packlist','expenses','new-expense','products','goals'];
+  const morePages=['charts','reports','packlist','expenses','new-expense','products','goals'];
   if(morePages.includes(page))document.querySelector('.nav-more')?.classList.add('active');
-  const titles={'dashboard':'Dashboard','charts':'Diagramme','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
+  const titles={'dashboard':'Dashboard','charts':'Diagramme','reports':'Berichte','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
   document.getElementById('page-title').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
   if(page==='charts')renderCharts();
+  if(page==='reports')renderReportPage();
   if(page==='sales')renderSalesTable();
   if(page==='returns'){populateProductSelects();document.getElementById('cancel-alert').innerHTML=''}
   if(page==='goals')renderGoalEditor();
@@ -394,6 +463,7 @@ function nav(page){
   if(page==='products')renderProducts();
   if(page==='new-sale'){resetSaleForm();populateProductSelects();setTodayDate('s-date');document.getElementById('sale-alert').innerHTML=''}
   if(page==='new-expense'){setTodayDate('e-date');document.getElementById('exp-alert').innerHTML=''}
+  animatePage(page);
 }
 function setTodayDate(id){document.getElementById(id).value=localDateISO()}
 
@@ -532,6 +602,7 @@ function renderDashboard(){
   renderGoalProgress(totalRev,totalProfit);
   renderPriceInsights();
   renderStockOverview();
+  animateVisibleContent(document.getElementById('page-dashboard'));
 }
 
 function monthKey(){return localDateISO().slice(0,7)}
@@ -636,7 +707,7 @@ function renderPriceInsights(){
   const target=document.getElementById('price-insights');
   if(!target)return;
   const rows=DB.products.map(p=>({p,stats:priceStats(p.name)})).filter(x=>x.stats).sort((a,b)=>b.stats.avgProfit-a.stats.avgProfit).slice(0,6);
-  if(!rows.length){target.innerHTML='<div class="empty" style="padding:1rem">Noch nicht genug Verkäufe für Preisvorschläge.</div>';return}
+  if(!rows.length){target.innerHTML=emptyState('ti-sparkles','Noch zu wenig Vergleichsdaten','Sobald mehr Verkäufe vorhanden sind, erscheinen hier bessere Preisvorschläge.');return}
   target.innerHTML=`<div class="summary-list">${rows.map(({p,stats})=>`
     <div class="summary-row"><span>${esc(p.name)}<br><span class="muted">${stats.count} Verkäufe · ${fmt(stats.min)} bis ${fmt(stats.max)}</span></span><strong>${fmt(stats.avg)} Ø</strong></div>
   `).join('')}</div>`;
@@ -647,7 +718,7 @@ function renderOpenSalesPanel(openSales=DB.sales.filter(s=>s.status==='offen')){
   if(!target)return;
   const rows=[...openSales].sort((a,b)=>new Date(a.date)-new Date(b.date));
   if(!rows.length){
-    target.innerHTML='<div class="empty" style="padding:1rem">Alles erledigt. Keine offenen Verkäufe.</div>';
+    target.innerHTML=emptyState('ti-circle-check','Alles erledigt','Aktuell gibt es keine offenen Verkäufe für den Versand.');
     return;
   }
   target.innerHTML=`<div class="open-list">${rows.map(s=>`
@@ -666,7 +737,7 @@ function renderPacklist(){
   const target=document.getElementById('packlist');
   if(!target)return;
   const rows=DB.sales.filter(s=>s.status==='offen').sort((a,b)=>new Date(a.date)-new Date(b.date));
-  if(!rows.length){target.innerHTML='<div class="empty">Keine offenen Verkäufe für die Packliste.</div>';return}
+  if(!rows.length){target.innerHTML=emptyState('ti-clipboard-check','Packliste leer','Alle offenen Verkäufe sind erledigt oder bereits versendet.');return}
   target.innerHTML=`<div class="print-list mobile-list" style="display:grid">${rows.map(s=>`
     <div class="print-item">
       <div><input type="checkbox" aria-label="gepackt"></div>
@@ -714,7 +785,7 @@ function salesTableActionsHTML(s,{deleteText=false}={}){
 }
 
 function salesTableHTML(rows,options={}){
-  if(!rows.length)return '<div class="empty">Keine Verkäufe gefunden</div>';
+  if(!rows.length)return emptyState('ti-package-off','Keine Verkäufe gefunden','Passe die Filter an oder erfasse einen neuen Verkauf.',`<button class="btn btn-primary" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</button>`);
   const table=`<table class="desktop-table"><thead><tr><th>#</th><th>Datum</th><th>Ausführung</th><th>Produkt</th><th>Notiz</th><th>Umsatz</th><th>Rohling</th><th>Gewinn</th><th>Marge</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(s=>`
     <tr>
       <td><button class="id-link" title="Verkauf #${s.id} bearbeiten" onclick="editSale(${s.id})">#${s.id}</button></td>
@@ -738,7 +809,7 @@ function salesActionsHTML(s,{deleteText=false}={}){
 
 function salesCardsHTML(rows,options={}){
   return `<div class="mobile-list">${rows.map(s=>`
-    <div class="sale-card">
+    <div class="sale-card" data-sale-id="${s.id}">
       <div class="sale-card-head">
         <div><button class="id-link" onclick="editSale(${s.id})">#${s.id}</button><div class="sale-card-title">${esc(s.art)}</div><div class="sale-card-meta">${fmtDate(s.date)} · Ausführung ${fmtDate(s.ship)}${s.note?' · '+esc(s.note):''}</div></div>
         <span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span>
@@ -782,6 +853,7 @@ function renderSalesTable(){
   const cnt=document.getElementById('sales-count');
   if(cnt)cnt.textContent=rows.length+' Einträge';
   document.getElementById('sales-table').innerHTML=salesTableHTML(rows,{deleteText:true,showDuplicate:false});
+  animateVisibleContent(document.getElementById('page-sales'));
 }
 
 function statusLabel(status){
@@ -790,6 +862,170 @@ function statusLabel(status){
 
 function statusClass(status){
   return {versendet:'badge-sent',offen:'badge-open',storniert:'badge-cancel',retour:'badge-return'}[status]||'badge-open';
+}
+
+function dateObj(iso){return new Date(iso+'T00:00:00')}
+function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d}
+function reportISO(date){return localDateISO(date)}
+
+function renderReportPage(){
+  const today=localDateISO();
+  const week=document.getElementById('report-week-date');
+  const month=document.getElementById('report-month');
+  const from=document.getElementById('report-from');
+  const to=document.getElementById('report-to');
+  if(week&&!week.value)week.value=today;
+  if(month&&!month.value)month.value=today.slice(0,7);
+  if(from&&!from.value)from.value=today.slice(0,8)+'01';
+  if(to&&!to.value)to.value=today;
+  updateReportControls(false);
+  renderReport();
+}
+
+function updateReportControls(shouldRender=true){
+  const mode=document.getElementById('report-period')?.value||'week';
+  document.querySelectorAll('.report-week-field').forEach(el=>el.style.display=mode==='week'?'flex':'none');
+  document.querySelectorAll('.report-month-field').forEach(el=>el.style.display=mode==='month'?'flex':'none');
+  document.querySelectorAll('.report-custom-field').forEach(el=>el.style.display=mode==='custom'?'flex':'none');
+  if(shouldRender)renderReport();
+}
+
+function currentReportRange(){
+  const mode=document.getElementById('report-period')?.value||'week';
+  if(mode==='all')return {mode,label:'Gesamtbericht',dateLabel:'Alle Verkäufe',from:null,to:null,file:'gesamt'};
+  if(mode==='month'){
+    const value=document.getElementById('report-month')?.value||localDateISO().slice(0,7);
+    const [year,month]=value.split('-').map(Number);
+    const from=new Date(year,month-1,1);
+    const to=new Date(year,month,0);
+    return {mode,label:'Monatsbericht',dateLabel:`${fmtDate(reportISO(from))} bis ${fmtDate(reportISO(to))}`,from:reportISO(from),to:reportISO(to),file:value};
+  }
+  if(mode==='custom'){
+    let from=document.getElementById('report-from')?.value||localDateISO();
+    let to=document.getElementById('report-to')?.value||from;
+    if(from>to)[from,to]=[to,from];
+    return {mode,label:'Zeitraumbericht',dateLabel:`${fmtDate(from)} bis ${fmtDate(to)}`,from,to,file:`${from}-bis-${to}`};
+  }
+  const picked=dateObj(document.getElementById('report-week-date')?.value||localDateISO());
+  const monday=addDays(picked,-((picked.getDay()+6)%7));
+  const sunday=addDays(monday,6);
+  return {mode,label:'Wochenbericht',dateLabel:`${fmtDate(reportISO(monday))} bis ${fmtDate(reportISO(sunday))}`,from:reportISO(monday),to:reportISO(sunday),file:`woche-${reportISO(monday)}`};
+}
+
+function reportRowsForRange(range){
+  return [...DB.sales].filter(s=>{
+    if(!s.date)return false;
+    if(range.from&&s.date<range.from)return false;
+    if(range.to&&s.date>range.to)return false;
+    return true;
+  }).sort(sortSalesNewest);
+}
+
+function reportPeriodRows(activeRows,range){
+  const useMonths=range.mode==='all'||(range.from&&range.to&&((dateObj(range.to)-dateObj(range.from))/86400000)>45);
+  const map={};
+  if(useMonths){
+    activeRows.forEach(s=>{
+      const key=s.date.slice(0,7);
+      if(!map[key])map[key]={label:key.split('-').reverse().join('.'),count:0,rev:0,cost:0,profit:0};
+      map[key].count++;map[key].rev+=realizedRevenue(s);map[key].cost+=realizedCost(s);map[key].profit+=profit(s);
+    });
+    return Object.entries(map).sort((a,b)=>a[0].localeCompare(b[0])).map(x=>x[1]);
+  }
+  const rows=[];
+  for(let d=dateObj(range.from);d<=dateObj(range.to);d=addDays(d,1)){
+    const iso=reportISO(d);
+    const sales=activeRows.filter(s=>s.date===iso);
+    rows.push({label:fmtDate(iso),count:sales.length,rev:sales.reduce((a,s)=>a+realizedRevenue(s),0),cost:sales.reduce((a,s)=>a+realizedCost(s),0),profit:sales.reduce((a,s)=>a+profit(s),0)});
+  }
+  return rows;
+}
+
+function renderReport(){
+  const target=document.getElementById('report-sheet');
+  if(!target)return;
+  const range=currentReportRange();
+  const rows=reportRowsForRange(range);
+  const activeRows=rows.filter(isActiveSale);
+  const revenue=activeRows.reduce((a,s)=>a+realizedRevenue(s),0);
+  const cost=activeRows.reduce((a,s)=>a+realizedCost(s),0);
+  const totalProfit=activeRows.reduce((a,s)=>a+profit(s),0);
+  const avgProfit=activeRows.length?totalProfit/activeRows.length:0;
+  const totalMargin=revenue?totalProfit/revenue*100:0;
+  const openCount=rows.filter(s=>s.status==='offen').length;
+  const canceledCount=rows.filter(s=>s.status==='storniert'||s.status==='retour').length;
+  const productMap={};
+  activeRows.forEach(s=>{
+    const key=cat(s.art);
+    if(!productMap[key])productMap[key]={count:0,rev:0,profit:0};
+    productMap[key].count++;productMap[key].rev+=realizedRevenue(s);productMap[key].profit+=profit(s);
+  });
+  const products=Object.entries(productMap).sort((a,b)=>b[1].profit-a[1].profit);
+  const periodRows=reportPeriodRows(activeRows,range);
+  target.innerHTML=`
+    <div class="report-header">
+      <div>
+        <div class="report-kicker">Vinted Verkaufsbericht</div>
+        <h1>${range.label}</h1>
+        <p>${range.dateLabel}</p>
+      </div>
+      <div class="report-created">Erstellt ${fmtDate(localDateISO())}</div>
+    </div>
+    <div class="report-metrics">
+      <div><span>Umsatz</span><strong>${fmt(revenue)}</strong></div>
+      <div><span>Gewinn</span><strong>${fmt(totalProfit)}</strong></div>
+      <div><span>Verkäufe</span><strong>${activeRows.length}</strong></div>
+      <div><span>Marge</span><strong>${totalMargin.toFixed(1).replace('.',',')}%</strong></div>
+      <div><span>Ø Gewinn</span><strong>${fmt(avgProfit)}</strong></div>
+      <div><span>Offen</span><strong>${openCount}</strong></div>
+    </div>
+    <div class="report-section">
+      <h2>Zusammenfassung</h2>
+      <div class="report-summary-grid">
+        <div class="summary-row"><span>Rohlingkosten</span><strong>${fmt(cost)}</strong></div>
+        <div class="summary-row"><span>Storno / Retour</span><strong>${canceledCount}</strong></div>
+        <div class="summary-row"><span>Höchster Verkauf</span><strong>${activeRows.length?fmt(Math.max(...activeRows.map(realizedRevenue))):fmt(0)}</strong></div>
+        <div class="summary-row"><span>Bester Gewinn</span><strong>${activeRows.length?fmt(Math.max(...activeRows.map(profit))):fmt(0)}</strong></div>
+      </div>
+    </div>
+    <div class="report-section">
+      <h2>Zeitraum-Übersicht</h2>
+      ${reportTable(['Zeitraum','Verkäufe','Umsatz','Kosten','Gewinn'],periodRows.map(r=>[r.label,r.count,fmt(r.rev),fmt(r.cost),fmt(r.profit)]))}
+    </div>
+    <div class="report-section">
+      <h2>Produkte</h2>
+      ${products.length?reportTable(['Produkt','Verkäufe','Umsatz','Gewinn'],products.map(([name,p])=>[esc(name),p.count,fmt(p.rev),fmt(p.profit)])):'<div class="empty">Keine Verkäufe in diesem Zeitraum.</div>'}
+    </div>
+    <div class="report-section">
+      <h2>Verkäufe</h2>
+      ${rows.length?reportTable(['#','Datum','Status','Produkt','Umsatz','Kosten','Gewinn'],rows.map(s=>['#'+s.id,fmtDate(s.date),statusLabel(s.status),esc(cat(s.art)),fmt(realizedRevenue(s)),fmt(realizedCost(s)),fmt(profit(s))])):'<div class="empty">Keine Einträge in diesem Zeitraum.</div>'}
+    </div>
+  `;
+}
+
+function reportTable(headers,rows){
+  return `<div class="table-wrap"><table class="report-table"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function printReport(){
+  renderReport();
+  window.print();
+}
+
+function downloadReportHTML(){
+  renderReport();
+  const range=currentReportRange();
+  const content=document.getElementById('report-sheet').innerHTML;
+  const html=`<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Vinted Bericht ${range.file}</title><style>
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a18;margin:28px;background:#fff}
+    .report-header{display:flex;justify-content:space-between;gap:24px;border-bottom:1px solid #ddd;padding-bottom:18px;margin-bottom:18px}
+    .report-kicker,.report-created{font-size:12px;color:#777}.report-header h1{margin:4px 0;font-size:26px}.report-header p{margin:0;color:#555}
+    .report-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}.report-metrics div{border:1px solid #ddd;border-radius:10px;padding:12px}.report-metrics span{display:block;font-size:11px;color:#777;text-transform:uppercase}.report-metrics strong{font-size:20px}
+    .report-section{margin-top:22px;break-inside:avoid}.report-section h2{font-size:15px;margin-bottom:8px}.report-summary-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.summary-row{display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding:7px 0}
+    table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;color:#777;border-bottom:1px solid #ddd;padding:7px}td{border-bottom:1px solid #eee;padding:7px}.empty{color:#777;padding:18px;text-align:center}
+    @media print{body{margin:0}.report-section{break-inside:avoid}}
+  </style></head><body>${content}</body></html>`;
+  downloadFile(`vinted-bericht-${range.file}.html`,'text/html;charset=utf-8',html);
 }
 
 function deleteSale(id){
@@ -807,6 +1043,7 @@ function refreshCurrentView(){
   if(document.getElementById('page-dashboard').classList.contains('active'))renderDashboard();
   if(document.getElementById('page-sales').classList.contains('active'))renderSalesTable();
   if(document.getElementById('page-charts').classList.contains('active'))renderCharts();
+  if(document.getElementById('page-reports').classList.contains('active'))renderReport();
   if(document.getElementById('page-packlist').classList.contains('active'))renderPacklist();
 }
 
@@ -1046,6 +1283,7 @@ function quickAddSale(){
   document.getElementById('q-profit').textContent='Gewinn —';
   alert.innerHTML='<div class="alert alert-success">Offener Verkauf gespeichert.</div>';
   renderDashboard();
+  flashNewestCard('#open-sales-panel .open-sale');
 }
 
 function cancelMatchingSale(){
@@ -1169,7 +1407,7 @@ function renderExpenses(){
     <div class="metric"><div class="metric-label">Ø pro Rohling</div><div class="metric-value">${qty?fmt(stockTotal/qty):fmt(0)}</div></div>
     <div class="metric"><div class="metric-label">Sonstige Kosten</div><div class="metric-value" style="color:var(--red)">${fmt(otherTotal)}</div><div class="metric-sub">ohne Bestand</div></div>
   `;
-  if(!exps.length){document.getElementById('exp-table').innerHTML='<div class="empty" style="padding:3rem">Noch keine Ausgaben erfasst.<br><button class="btn btn-primary" onclick="nav(\'new-expense\')" style="margin-top:1rem">Erste Ausgabe hinzufügen</button></div>';return}
+  if(!exps.length){document.getElementById('exp-table').innerHTML=emptyState('ti-receipt','Noch keine Ausgaben','Erfasse deine ersten Rohlingkosten, damit Gewinn und Bestand genauer werden.',`<button class="btn btn-primary" onclick="nav('new-expense')"><i class="ti ti-plus"></i> Erste Ausgabe</button>`);return}
   document.getElementById('exp-table').innerHTML=`<table><thead><tr><th>Datum</th><th>Art</th><th>Produkt</th><th>Anzahl</th><th>€/Stück</th><th>Gesamt</th><th>Notiz</th><th></th></tr></thead><tbody>${exps.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=>`
     <tr><td>${fmtDate(e.date)}</td><td>${e.kind==='sonstige'?'Sonstige':'Rohling'}</td><td>${esc(e.product)}</td><td>${e.qty}</td><td>${fmt(e.unit)}</td><td class="profit-neg">${fmt(e.total)}</td><td style="color:var(--text2);font-size:12px">${e.note?esc(e.note):'—'}</td><td><button class="btn btn-danger" onclick="deleteExp(${e.id})" style="padding:4px 8px;font-size:11px"><i class="ti ti-trash" aria-hidden="true"></i></button></td></tr>`).join('')}</tbody></table>`;
 }
@@ -1275,9 +1513,12 @@ function renderCharts(){
 }
 
 async function initApp(){
+  initAppFeel();
   DB=await loadData();
   if(renumberSales())saveData();
   renderDashboard();
+  animateVisibleContent(document.getElementById('page-dashboard'));
+  hideSplash();
 }
 
 // Init

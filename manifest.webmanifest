@@ -2,14 +2,31 @@
   "name": "Vinted Tracker",
   "short_name": "Vinted",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#f8f7f4",
   "theme_color": "#1a6b4a",
+  "description": "Privater Verkaufs-Tracker fuer Vinted.",
+  "shortcuts": [
+    {
+      "name": "Dashboard Widget",
+      "short_name": "Widget",
+      "url": "./widget.html",
+      "icons": [
+        {
+          "src": "./icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ],
   "icons": [
     {
       "src": "./icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }

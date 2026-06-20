@@ -16,6 +16,13 @@
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+<div id="app-splash" class="app-splash" aria-hidden="true">
+  <div class="splash-card">
+    <div class="splash-logo"><i class="ti ti-hanger-2"></i></div>
+    <div class="splash-title">Vinted Tracker</div>
+    <div class="splash-bar"><span></span></div>
+  </div>
+</div>
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
@@ -25,6 +32,7 @@
     <div class="section-label">Übersicht</div>
     <div class="nav-item active" onclick="nav('dashboard')"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
     <div class="nav-item nav-extra" onclick="nav('charts')"><i class="ti ti-chart-bar"></i> Diagramme</div>
+    <div class="nav-item nav-extra" onclick="nav('reports')"><i class="ti ti-file-analytics"></i> Berichte</div>
     <div class="section-label">Verkäufe</div>
     <div class="nav-item" onclick="nav('sales')"><i class="ti ti-package"></i> Alle Verkäufe</div>
     <div class="nav-item" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</div>
@@ -184,6 +192,7 @@
       <div id="page-more" class="page">
         <div class="more-grid">
           <button class="more-tile" onclick="nav('charts')"><i class="ti ti-chart-bar"></i><span>Diagramme</span></button>
+          <button class="more-tile" onclick="nav('reports')"><i class="ti ti-file-analytics"></i><span>Berichte</span></button>
           <button class="more-tile" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i><span>Packliste</span></button>
           <button class="more-tile" onclick="nav('expenses')"><i class="ti ti-receipt"></i><span>Rohlingskosten</span></button>
           <button class="more-tile" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i><span>Neue Ausgabe</span></button>
@@ -191,6 +200,45 @@
           <button class="more-tile" onclick="nav('goals')"><i class="ti ti-adjustments"></i><span>Ziele</span></button>
           <button class="more-tile" onclick="window.open('./widget.html','_blank')"><i class="ti ti-layout-grid"></i><span>Dashboard Widget</span></button>
         </div>
+      </div>
+
+      <!-- BERICHTE -->
+      <div id="page-reports" class="page">
+        <div class="card report-controls">
+          <div class="card-title">Bericht erstellen</div>
+          <div class="form-row report-range-grid">
+            <div class="form-group">
+              <label>Zeitraum</label>
+              <select id="report-period" onchange="updateReportControls()">
+                <option value="week">Woche</option>
+                <option value="month">Monat</option>
+                <option value="all">Gesamt</option>
+                <option value="custom">Eigener Zeitraum</option>
+              </select>
+            </div>
+            <div class="form-group report-field report-week-field">
+              <label>Tag in der Woche</label>
+              <input type="date" id="report-week-date" onchange="renderReport()">
+            </div>
+            <div class="form-group report-field report-month-field" style="display:none">
+              <label>Monat</label>
+              <input type="month" id="report-month" onchange="renderReport()">
+            </div>
+            <div class="form-group report-field report-custom-field" style="display:none">
+              <label>Von</label>
+              <input type="date" id="report-from" onchange="renderReport()">
+            </div>
+            <div class="form-group report-field report-custom-field" style="display:none">
+              <label>Bis</label>
+              <input type="date" id="report-to" onchange="renderReport()">
+            </div>
+          </div>
+          <div class="inline-actions">
+            <button class="btn btn-primary" onclick="printReport()"><i class="ti ti-printer"></i> Als PDF drucken</button>
+            <button class="btn" onclick="downloadReportHTML()"><i class="ti ti-download"></i> Bericht herunterladen</button>
+          </div>
+        </div>
+        <div id="report-sheet" class="report-sheet"></div>
       </div>
 
       <!-- DIAGRAMME -->
