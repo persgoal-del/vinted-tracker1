@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vinted Tracker</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Vinted Tracker</h1>
+      <p>Per Hellberg · 2026</p>
+    </div>
+    <div class="section-label">Übersicht</div>
+    <div class="nav-item active" onclick="nav('dashboard')"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
+    <div class="nav-item" onclick="nav('charts')"><i class="ti ti-chart-bar"></i> Diagramme</div>
+    <div class="nav-item" onclick="nav('quality')"><i class="ti ti-shield-check"></i> Datencheck</div>
+    <div class="section-label">Verkäufe</div>
+    <div class="nav-item" onclick="nav('sales')"><i class="ti ti-package"></i> Alle Verkäufe</div>
+    <div class="nav-item" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</div>
+    <div class="nav-item" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i> Packliste</div>
+    <div class="section-label">Kosten</div>
+    <div class="nav-item" onclick="nav('expenses')"><i class="ti ti-receipt"></i> Rohlingskosten</div>
+    <div class="nav-item" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i> Neue Ausgabe</div>
+    <div class="section-label">Stammdaten</div>
+    <div class="nav-item" onclick="nav('products')"><i class="ti ti-tags"></i> Produkte</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div class="toolbar">
+        <button class="btn" onclick="exportCSV()"><i class="ti ti-download"></i> Export CSV</button>
+        <button class="btn" onclick="exportBackup()"><i class="ti ti-database-export"></i> Backup</button>
+        <button class="btn" onclick="document.getElementById('import-file').click()"><i class="ti ti-database-import"></i> Import</button>
+        <button class="btn" onclick="document.getElementById('import-sales-file').click()"><i class="ti ti-file-import"></i> CSV Import</button>
+        <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importBackup(event)">
+        <input type="file" id="import-sales-file" accept=".csv,text/csv" style="display:none" onchange="importSalesCSV(event)">
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+          <div class="segmented" id="dash-range">
+            <button data-range="all" class="active" onclick="setDashboardRange('all')">Alles</button>
+            <button data-range="today" onclick="setDashboardRange('today')">Heute</button>
+            <button data-range="7d" onclick="setDashboardRange('7d')">7 Tage</button>
+            <button data-range="month" onclick="setDashboardRange('month')">Monat</button>
+          </div>
+          <div class="muted" id="backup-status"></div>
+        </div>
+        <div class="metric-grid" id="dash-metrics"></div>
+        <div class="card" id="dash-goals-card">
+          <div class="card-title">Monatsziel</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Umsatzziel (€)</label>
+              <input type="number" id="goal-revenue" step="1" placeholder="0" oninput="saveGoals()">
+            </div>
+            <div class="form-group">
+              <label>Gewinnziel (€)</label>
+              <input type="number" id="goal-profit" step="1" placeholder="0" oninput="saveGoals()">
+            </div>
+          </div>
+          <div id="goal-progress"></div>
+        </div>
+        <div class="card" id="dash-snapshots-card">
+          <div class="card-title">Sicherungspunkte</div>
+          <div id="snapshot-list"></div>
+        </div>
+        <div class="card" id="dash-quick-card">
+          <div class="card-title">Schnell-Erfassung</div>
+          <div id="quick-alert"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Produkt</label>
+              <select id="q-product" onchange="onQuickProductSelect()"></select>
+            </div>
+            <div class="form-group">
+              <label>Umsatz (€)</label>
+              <input type="number" id="q-revenue" step="0.01" placeholder="0.00" oninput="calcQuickProfit()">
+              <div id="q-price-hint" class="price-hint"></div>
+            </div>
+          </div>
+          <div class="inline-actions">
+            <input type="number" id="q-cost" step="0.01" placeholder="Rohling" style="max-width:130px" oninput="calcQuickProfit()">
+            <span class="muted" id="q-profit">Gewinn —</span>
+            <button class="btn btn-primary" onclick="quickAddSale()"><i class="ti ti-plus"></i> Offen speichern</button>
+          </div>
+        </div>
+        <div class="two-col" id="dash-month-row">
+          <div class="card">
+            <div class="card-title">Monatsabschluss <span id="month-label" class="muted"></span></div>
+            <div id="month-report"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Preis- und Margenhilfe</div>
+            <div id="price-insights"></div>
+          </div>
+        </div>
+        <div class="two-col" id="dash-charts-row">
+          <div class="card">
+            <div class="card-title">Umsatz & Gewinn pro Woche</div>
+            <div class="chart-wrap"><canvas id="weekChart" role="img" aria-label="Wöchentlicher Umsatz und Gewinn"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Umsatz nach Produkt</div>
+            <div class="chart-wrap"><canvas id="productChart" role="img" aria-label="Umsatz nach Produkt"></canvas></div>
+          </div>
+        </div>
+        <div class="card" id="dash-open-card">
+          <div class="card-title">Muss noch zur Post</div>
+          <div id="open-sales-panel"></div>
+        </div>
+        <div class="card" id="dash-recent-card">
+          <div class="card-title">Letzte 10 Verkäufe</div>
+          <div class="table-wrap" id="recent-table"></div>
+        </div>
+        <div class="two-col" id="dash-bottom-row">
+          <div class="card">
+            <div class="card-title">Bestand nach Rohlingstyp</div>
+            <div id="stock-overview"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Datencheck</div>
+            <div id="data-issues"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DIAGRAMME -->
+      <div id="page-charts" class="page">
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchChartTab('monthly')">Monatlich</div>
+          <div class="tab" onclick="switchChartTab('product')">Pro Produkt</div>
+          <div class="tab" onclick="switchChartTab('margin')">Margen</div>
+        </div>
+        <div id="chart-monthly">
+          <div class="card">
+            <div class="card-title">Monatlicher Umsatz & Gewinn</div>
+            <div class="chart-wrap" style="height:280px"><canvas id="monthlyChart" role="img" aria-label="Monatlicher Umsatz"></canvas></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Anzahl Verkäufe pro Monat</div>
+            <div class="chart-wrap" style="height:200px"><canvas id="countChart" role="img" aria-label="Verkaufsanzahl pro Monat"></canvas></div>
+          </div>
+        </div>
+        <div id="chart-product" style="display:none">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Umsatz nach Produkt</div>
+              <div class="chart-wrap" style="height:320px"><canvas id="prodRevChart" role="img" aria-label="Umsatz nach Produkt"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Gewinn nach Produkt</div>
+              <div class="chart-wrap" style="height:320px"><canvas id="prodProfitChart" role="img" aria-label="Gewinn nach Produkt"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div id="chart-margin" style="display:none">
+          <div class="card">
+            <div class="card-title">Ø Verkaufspreis pro Produkt (Rohling vs. Preis)</div>
+            <div class="chart-wrap" style="height:320px"><canvas id="marginChart" role="img" aria-label="Marge pro Produkt"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALLE VERKÄUFE -->
+      <div id="page-sales" class="page">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap">
+          <input type="text" id="search" placeholder="Suchen..." style="max-width:200px" oninput="renderSalesTable()">
+          <input type="date" id="filter-from" onchange="renderSalesTable()" style="max-width:150px">
+          <input type="date" id="filter-to" onchange="renderSalesTable()" style="max-width:150px">
+          <select id="filter-cat" onchange="renderSalesTable()" style="max-width:180px">
+            <option value="">Alle Kategorien</option>
+          </select>
+          <select id="filter-status" onchange="renderSalesTable()" style="max-width:160px">
+            <option value="">Alle Status</option>
+            <option value="versendet">Versendet</option>
+            <option value="offen">Offen</option>
+            <option value="storniert">Storniert</option>
+            <option value="retour">Retour</option>
+          </select>
+          <select id="filter-special" onchange="renderSalesTable()" style="max-width:180px">
+            <option value="">Alle Einträge</option>
+            <option value="low-margin">Marge unter 30%</option>
+            <option value="missing-note">Ohne Notiz</option>
+            <option value="issues">Mit Datenfehler</option>
+          </select>
+          <span style="font-size:12px;color:var(--text3)" id="sales-count"></span>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap" id="sales-table"></div>
+        </div>
+      </div>
+
+      <!-- DATENQUALITÄT -->
+      <div id="page-quality" class="page">
+        <div class="quality-grid" id="quality-metrics"></div>
+        <div class="card">
+          <div class="card-title">Auffällige Einträge</div>
+          <div id="quality-list"></div>
+        </div>
+      </div>
+
+      <!-- NEUER VERKAUF -->
+      <div id="page-new-sale" class="page">
+        <div class="card" style="max-width:540px">
+          <div class="card-title" id="sale-form-title">Neuen Verkauf erfassen</div>
+          <div id="sale-alert"></div>
+          <input type="hidden" id="s-edit-id">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Datum</label>
+              <input type="date" id="s-date">
+            </div>
+            <div class="form-group">
+              <label>Ausführdatum (optional)</label>
+              <input type="date" id="s-shipdate" onchange="syncShipStatus()">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Produkt</label>
+            <select id="s-product" onchange="onProductSelect()">
+              <option value="">Produkt wählen...</option>
+              <option value="Hose">Hose</option>
+              <option value="Tshirt Saint Tropez">Tshirt Saint Tropez</option>
+              <option value="Tshirt Saint Tropez Navy">Tshirt Saint Tropez Navy</option>
+              <option value="Tshirt Saint Tropez Schwarz">Tshirt Saint Tropez Schwarz</option>
+              <option value="Tshirt Cap d'Antebes">Tshirt Cap d'Antebes</option>
+              <option value="Tshirt Monaco">Tshirt Monaco</option>
+              <option value="Tshirt Monaco Dolce Vita">Tshirt Monaco Dolce Vita</option>
+              <option value="Tshirt Monaco Heliport Navy">Tshirt Monaco Heliport Navy</option>
+              <option value="Tshirt Monaco Heliport">Tshirt Monaco Heliport</option>
+              <option value="Tshirt Dolce Vita navyblau">Tshirt Dolce Vita navyblau</option>
+              <option value="Pullover Miami Collection">Pullover Miami Collection</option>
+              <option value="Armband mit Karabiner Navyblau">Armband mit Karabiner Navyblau</option>
+              <option value="Armband mit Muschel und Stern">Armband mit Muschel und Stern</option>
+              <option value="Hose + Tshirt">Hose + Tshirt (Bundle)</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Umsatz (€)</label>
+              <input type="number" id="s-revenue" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
+            </div>
+            <div class="form-group">
+              <label>Stückpreis / Rohling (€)</label>
+              <input type="number" id="s-cost" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
+              <div id="s-cost-hint" style="font-size:11px;margin-top:4px;display:none"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Gewinn (€)</label>
+              <input type="number" id="s-profit" step="0.01" placeholder="—" readonly style="opacity:0.6">
+            </div>
+            <div class="form-group">
+              <label>Marge (%)</label>
+              <input type="number" id="s-margin" step="0.01" placeholder="—" readonly style="opacity:0.6">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Status</label>
+            <select id="s-status">
+              <option value="offen">Offen</option>
+              <option value="versendet">Versendet</option>
+              <option value="storniert">Storniert</option>
+              <option value="retour">Retour</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Notiz</label>
+            <input type="text" id="s-note" placeholder="z.B. Käufer, Größe, Farbe, Bestellnummer">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="saveSale()"><i class="ti ti-check"></i> Speichern</button>
+            <button class="btn" onclick="resetSaleForm();nav('sales')">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PACKLISTE -->
+      <div id="page-packlist" class="page">
+        <div class="card">
+          <div class="card-title">Packliste</div>
+          <div class="inline-actions" style="margin-bottom:1rem">
+            <button class="btn" onclick="window.print()"><i class="ti ti-printer"></i> Drucken</button>
+            <button class="btn" onclick="exportPacklistCSV()"><i class="ti ti-download"></i> CSV</button>
+          </div>
+          <div id="packlist"></div>
+        </div>
+      </div>
+
+      <!-- CSV IMPORT VORSCHAU -->
+      <div id="import-modal" class="modal-overlay">
+        <div class="modal" style="width:760px">
+          <div class="modal-title">CSV-Import prüfen <button class="close-btn" onclick="closeImportPreview()">×</button></div>
+          <div id="import-summary" class="muted" style="margin-bottom:12px"></div>
+          <div id="import-preview" class="import-preview"></div>
+          <div class="inline-actions" style="margin-top:1rem;justify-content:flex-end">
+            <button class="btn" onclick="closeImportPreview()">Abbrechen</button>
+            <button class="btn btn-primary" onclick="confirmSalesImport()"><i class="ti ti-file-import"></i> Importieren</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUSGABEN -->
+      <div id="page-expenses" class="page">
+        <div class="metric-grid" id="exp-metrics"></div>
+        <div class="card" style="padding:0">
+          <div class="table-wrap" id="exp-table"></div>
+        </div>
+      </div>
+
+      <!-- PRODUKTE -->
+      <div id="page-products" class="page">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Produkt hinzufügen</div>
+            <div id="product-alert"></div>
+            <div class="form-group" style="margin-bottom:12px">
+              <label>Name</label>
+              <input type="text" id="p-name" placeholder="z.B. Tshirt Monaco Weiß">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Kategorie</label>
+                <select id="p-category">
+                  <option value="Hose">Hose</option>
+                  <option value="Tshirt">Tshirt</option>
+                  <option value="Pullover">Pullover</option>
+                  <option value="Armband">Armband</option>
+                  <option value="Sonstiges">Sonstiges</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Standard-Rohling (€)</label>
+                <input type="number" id="p-cost" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="addProduct()"><i class="ti ti-plus"></i> Produkt speichern</button>
+          </div>
+          <div class="card">
+            <div class="card-title">Produktliste</div>
+            <div class="table-wrap" id="products-table"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEUE AUSGABE -->
+      <div id="page-new-expense" class="page">
+        <div class="card" style="max-width:540px">
+          <div class="card-title">Neue Rohlingsausgabe erfassen</div>
+          <div id="exp-alert"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Datum</label>
+              <input type="date" id="e-date">
+            </div>
+            <div class="form-group">
+              <label>Anzahl Rohlinge</label>
+              <input type="number" id="e-qty" min="1" placeholder="z.B. 50" oninput="calcExpTotal()">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Produkt / Typ</label>
+            <select id="e-product">
+              <option value="">Typ wählen...</option>
+              <option value="Hose">Hose</option>
+              <option value="Tshirt">Tshirt</option>
+              <option value="Pullover">Pullover</option>
+              <option value="Armband">Armband</option>
+              <option value="Sonstiges">Sonstiges</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>Kostenart</label>
+            <select id="e-kind">
+              <option value="rohling">Rohlinge / Bestand</option>
+              <option value="sonstige">Sonstige Kosten</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Preis pro Stück (€)</label>
+              <input type="number" id="e-unit" step="0.01" placeholder="0.00" oninput="calcExpTotal()">
+            </div>
+            <div class="form-group">
+              <label>Gesamt (€)</label>
+              <input type="number" id="e-total" step="0.01" placeholder="—" readonly style="opacity:0.6">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Notiz</label>
+            <input type="text" id="e-note" placeholder="z.B. Lieferant, Bestellnummer...">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" onclick="addExpense()"><i class="ti ti-check"></i> Speichern</button>
+            <button class="btn" onclick="nav('expenses')">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div id="undo-bar" class="undo-bar">
+  <span id="undo-text">Änderung gespeichert</span>
+  <button class="btn btn-primary" onclick="undoLastChange()">Rückgängig</button>
+  <button class="close-btn" onclick="hideUndoBar()">×</button>
+</div>
+
+<script src="./storage.js"></script>
+<script src="./calculations.js"></script>
+<script src="./app.js"></script>
+</body>
+</html>
