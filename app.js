@@ -379,6 +379,8 @@ function nav(page){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active')});
+  const morePages=['charts','packlist','expenses','new-expense','products','goals'];
+  if(morePages.includes(page))document.querySelector('.nav-more')?.classList.add('active');
   const titles={'dashboard':'Dashboard','charts':'Diagramme','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
   document.getElementById('page-title').textContent=titles[page]||page;
   if(page==='dashboard')renderDashboard();
@@ -686,10 +688,15 @@ function soldUnitsByType(){
   },{});
 }
 
-function renderStockOverview(){
+function stockStats(){
   const bought=DB.expenses.filter(e=>e.kind!=='sonstige').reduce((map,e)=>{map[e.product]=(map[e.product]||0)+(e.qty||0);return map},{});
   const sold=soldUnitsByType();
   const types=[...new Set([...Object.keys(bought),...Object.keys(sold),'Hose','Tshirt','Pullover','Armband'])].filter(Boolean);
+  return {bought,sold,types};
+}
+
+function renderStockOverview(){
+  const {bought,sold,types}=stockStats();
   const target=document.getElementById('stock-overview');
   if(!target)return;
   target.innerHTML=`<div class="stock-grid">${types.map(t=>{
@@ -700,10 +707,10 @@ function renderStockOverview(){
 
 function getWeek(d){const jan=new Date(d.getFullYear(),0,1);const wk=Math.ceil((((d-jan)/86400000)+jan.getDay()+1)/7);return d.getFullYear()+'-W'+(wk<10?'0'+wk:wk)}
 
-function salesTableActionsHTML(s,{deleteText=false,showDuplicate=true}={}){
+function salesTableActionsHTML(s,{deleteText=false}={}){
   const small='style="padding:4px 8px;font-size:11px"';
   const deleteClass=deleteText?'btn btn-danger':'btn btn-danger btn-icon';
-  return `<div class="action-row">${s.status==='offen'?`<button class="btn btn-primary btn-icon" title="Heute als versendet markieren" onclick="markSaleShipped(${s.id})" ${small}><i class="ti ti-package-export" aria-hidden="true"></i></button>`:''}${showDuplicate?`<button class="btn btn-icon" title="Duplizieren" onclick="duplicateSale(${s.id})" ${small}><i class="ti ti-copy" aria-hidden="true"></i></button>`:''}<button class="btn btn-icon" title="Bearbeiten" onclick="editSale(${s.id})" ${small}><i class="ti ti-pencil" aria-hidden="true"></i></button><button class="${deleteClass}" title="Diesen Verkauf löschen" onclick="deleteSale(${s.id})" ${small}><i class="ti ti-trash" aria-hidden="true"></i>${deleteText?' Löschen':''}</button></div>`;
+  return `<div class="action-row"><button class="${deleteClass}" title="Diesen Verkauf löschen" onclick="deleteSale(${s.id})" ${small}><i class="ti ti-trash" aria-hidden="true"></i>${deleteText?' Löschen':''}</button></div>`;
 }
 
 function salesTableHTML(rows,options={}){
@@ -720,13 +727,13 @@ function salesTableHTML(rows,options={}){
       <td class="${profit(s)>=0?'profit-pos':'profit-neg'}">${fmt(profit(s))}</td>
       <td>${margin(s).toFixed(1)}%</td>
       <td><span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span></td>
-      <td>${salesTableActionsHTML(s,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false})}</td>
+      <td>${salesTableActionsHTML(s,{deleteText:options.deleteText})}</td>
     </tr>`).join('')}</tbody></table>`;
-  return table+salesCardsHTML(rows,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false});
+  return table+salesCardsHTML(rows,{deleteText:options.deleteText});
 }
 
-function salesActionsHTML(s,{deleteText=false,showDuplicate=true}={}){
-  return `<div class="action-row">${s.status==='offen'?`<button class="btn btn-primary" onclick="markSaleShipped(${s.id})"><i class="ti ti-package-export"></i> Versendet</button>`:''}${showDuplicate?`<button class="btn" onclick="duplicateSale(${s.id})"><i class="ti ti-copy"></i></button>`:''}<button class="btn" onclick="editSale(${s.id})"><i class="ti ti-pencil"></i></button><button class="btn btn-danger" onclick="deleteSale(${s.id})"><i class="ti ti-trash"></i>${deleteText?' Löschen':''}</button></div>`;
+function salesActionsHTML(s,{deleteText=false}={}){
+  return `<div class="action-row"><button class="btn btn-danger" onclick="deleteSale(${s.id})"><i class="ti ti-trash"></i>${deleteText?' Löschen':''}</button></div>`;
 }
 
 function salesCardsHTML(rows,options={}){
@@ -741,7 +748,7 @@ function salesCardsHTML(rows,options={}){
         <div class="sale-card-stat"><span>Gewinn</span>${fmt(profit(s))}</div>
         <div class="sale-card-stat"><span>Marge</span>${margin(s).toFixed(1)}%</div>
       </div>
-      ${salesActionsHTML(s,{deleteText:options.deleteText,showDuplicate:options.showDuplicate!==false})}
+      ${salesActionsHTML(s,{deleteText:options.deleteText})}
     </div>`).join('')}</div>`;
 }
 
@@ -1177,8 +1184,9 @@ function deleteExp(id){
 let currentChartTab='monthly';
 function switchChartTab(t){
   currentChartTab=t;
-  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['monthly','product','margin'][i]===t)});
-  ['monthly','product','margin'].forEach(x=>document.getElementById('chart-'+x).style.display=x===t?'block':'none');
+  const tabs=['monthly','product','margin','status','patterns'];
+  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',tabs[i]===t)});
+  tabs.forEach(x=>{const section=document.getElementById('chart-'+x);if(section)section.style.display=x===t?'block':'none'});
   renderCharts();
 }
 
@@ -1221,6 +1229,48 @@ function renderCharts(){
       {label:'Ø Rohling',data:prods.map(p=>+avgCost(p).toFixed(2)),backgroundColor:'#F5C4B3'},
       {label:'Ø Verkaufspreis',data:prods.map(p=>+avgRev(p).toFixed(2)),backgroundColor:'#1D9E75'},
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'€'+v}}}}});
+  }
+  if(currentChartTab==='status'){
+    const statuses=['offen','versendet','retour','storniert'];
+    const statusCounts=statuses.map(st=>DB.sales.filter(sale=>sale.status===st).length);
+    destroyChart('statusChart');
+    charts['statusChart']=new Chart(document.getElementById('statusChart'),{
+      type:'doughnut',
+      data:{labels:statuses.map(statusLabel),datasets:[{data:statusCounts,backgroundColor:['#F0B13A','#1D9E75','#378ADD','#D45353'],borderWidth:0}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}
+    });
+
+    const {bought,sold,types}=stockStats();
+    const stockRows=types.map(t=>({type:t,left:(bought[t]||0)-(sold[t]||0)})).sort((a,b)=>a.left-b.left);
+    destroyChart('stockChart');
+    charts['stockChart']=new Chart(document.getElementById('stockChart'),{
+      type:'bar',
+      data:{labels:stockRows.map(x=>x.type),datasets:[{label:'Bestand',data:stockRows.map(x=>x.left),backgroundColor:stockRows.map(x=>x.left<0?'#D45353':x.left<5?'#F0B13A':'#1D9E75')}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{ticks:{stepSize:1}}}}
+    });
+  }
+  if(currentChartTab==='patterns'){
+    const days=['Mo','Di','Mi','Do','Fr','Sa','So'];
+    const weekdayCounts=[0,0,0,0,0,0,0];
+    s.forEach(sale=>{
+      const day=new Date(sale.date+'T00:00:00');
+      if(Number.isNaN(day.getTime()))return;
+      weekdayCounts[(day.getDay()+6)%7]++;
+    });
+    destroyChart('weekdayChart');
+    charts['weekdayChart']=new Chart(document.getElementById('weekdayChart'),{
+      type:'bar',
+      data:{labels:days,datasets:[{label:'Verkäufe',data:weekdayCounts,backgroundColor:'#7F77DD'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1}}}}
+    });
+
+    const points=sortSalesNewest(s).slice(0,120).map(sale=>({x:+realizedRevenue(sale).toFixed(2),y:+profit(sale).toFixed(2),product:cat(sale.art)}));
+    destroyChart('priceProfitChart');
+    charts['priceProfitChart']=new Chart(document.getElementById('priceProfitChart'),{
+      type:'scatter',
+      data:{datasets:[{label:'Verkauf',data:points,backgroundColor:'#1D9E75'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.product}: Preis ${fmt(ctx.raw.x)}, Gewinn ${fmt(ctx.raw.y)}`}}},scales:{x:{title:{display:true,text:'Preis'},ticks:{callback:v=>'€'+v}},y:{title:{display:true,text:'Gewinn'},ticks:{callback:v=>'€'+v}}}}
+    });
   }
 }
 

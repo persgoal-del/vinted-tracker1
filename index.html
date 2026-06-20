@@ -189,6 +189,7 @@
           <button class="more-tile" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i><span>Neue Ausgabe</span></button>
           <button class="more-tile" onclick="nav('products')"><i class="ti ti-tags"></i><span>Produkte</span></button>
           <button class="more-tile" onclick="nav('goals')"><i class="ti ti-adjustments"></i><span>Ziele</span></button>
+          <button class="more-tile" onclick="window.open('./widget.html','_blank')"><i class="ti ti-layout-grid"></i><span>Dashboard Widget</span></button>
         </div>
       </div>
 
@@ -198,6 +199,8 @@
           <div class="tab active" onclick="switchChartTab('monthly')">Monatlich</div>
           <div class="tab" onclick="switchChartTab('product')">Pro Produkt</div>
           <div class="tab" onclick="switchChartTab('margin')">Margen</div>
+          <div class="tab" onclick="switchChartTab('status')">Status</div>
+          <div class="tab" onclick="switchChartTab('patterns')">Muster</div>
         </div>
         <div id="chart-monthly">
           <div class="card">
@@ -225,6 +228,30 @@
           <div class="card">
             <div class="card-title">Ø Verkaufspreis pro Produkt (Rohling vs. Preis)</div>
             <div class="chart-wrap" style="height:320px"><canvas id="marginChart" role="img" aria-label="Marge pro Produkt"></canvas></div>
+          </div>
+        </div>
+        <div id="chart-status" style="display:none">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Status-Verteilung</div>
+              <div class="chart-wrap" style="height:300px"><canvas id="statusChart" role="img" aria-label="Status-Verteilung"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Lagerbestand nach Rohling</div>
+              <div class="chart-wrap" style="height:300px"><canvas id="stockChart" role="img" aria-label="Lagerbestand nach Rohling"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div id="chart-patterns" style="display:none">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Verkäufe nach Wochentag</div>
+              <div class="chart-wrap" style="height:300px"><canvas id="weekdayChart" role="img" aria-label="Verkäufe nach Wochentag"></canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Preis zu Gewinn</div>
+              <div class="chart-wrap" style="height:300px"><canvas id="priceProfitChart" role="img" aria-label="Preis zu Gewinn"></canvas></div>
+            </div>
           </div>
         </div>
       </div>
