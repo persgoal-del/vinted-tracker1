@@ -304,6 +304,7 @@ let dashboardRange='all';
 let undoStack=[];
 let undoTimer=null;
 const MAX_TABLE_ROWS=300;
+const MAX_MOBILE_TABLE_ROWS=80;
 const MAX_REPORT_ROWS=500;
 let contentAnimationRun=0;
 let countAnimationRun=0;
@@ -314,6 +315,10 @@ function reduceMotion(){
 
 function visibleRows(rows,limit=MAX_TABLE_ROWS){
   return {rows:rows.slice(0,limit),hidden:Math.max(0,rows.length-limit)};
+}
+
+function isMobileView(){
+  return window.matchMedia('(max-width:760px)').matches;
 }
 
 function cloneData(data=DB){
@@ -532,6 +537,12 @@ function initAppFeel(){
     ripple.addEventListener('animationend',()=>ripple.remove(),{once:true});
   });
   window.addEventListener('resize',debounce(updateMobileNavIndicator,120));
+  const mobileQuery=window.matchMedia('(max-width:760px)');
+  const rerenderOnModeChange=debounce(()=>{
+    if(document.getElementById('page-sales')?.classList.contains('active'))renderSalesTable();
+  },120);
+  if(mobileQuery.addEventListener)mobileQuery.addEventListener('change',rerenderOnModeChange);
+  else if(mobileQuery.addListener)mobileQuery.addListener(rerenderOnModeChange);
 
 }
 
@@ -977,6 +988,7 @@ function salesTableActionsHTML(s,{deleteText=false}={}){
 
 function salesTableHTML(rows,options={}){
   if(!rows.length)return emptyState('ti-package-off','Keine Verkäufe gefunden','Passe die Filter an oder erfasse einen neuen Verkauf.',`<button class="btn btn-primary" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</button>`);
+  if(options.mobileOnly)return salesCardsHTML(rows,{deleteText:options.deleteText});
   const table=`<table class="desktop-table"><thead><tr><th>#</th><th>Datum</th><th>Ausführung</th><th>Produkt</th><th>Notiz</th><th>Umsatz</th><th>Rohling</th><th>Gewinn</th><th>Marge</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(s=>`
     <tr>
       <td><button class="id-link" title="Verkauf #${s.id} bearbeiten" onclick="editSale(${s.id})">#${s.id}</button></td>
@@ -991,6 +1003,7 @@ function salesTableHTML(rows,options={}){
       <td><span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span></td>
       <td>${salesTableActionsHTML(s,{deleteText:options.deleteText})}</td>
     </tr>`).join('')}</tbody></table>`;
+  if(options.desktopOnly)return table;
   return table+salesCardsHTML(rows,{deleteText:options.deleteText});
 }
 
@@ -1044,9 +1057,10 @@ function renderSalesTable(){
   });
   const cnt=document.getElementById('sales-count');
   if(cnt)cnt.textContent=rows.length+' Einträge';
-  const limited=visibleRows(rows);
-  const notice=limited.hidden?`<div class="alert" style="background:var(--amber-bg);color:var(--amber-text)">Aus Leistungsgründen werden die neuesten ${limited.rows.length} Einträge angezeigt. Grenzen den Zeitraum ein, um ältere Verkäufe zu sehen.</div>`:'';
-  document.getElementById('sales-table').innerHTML=notice+salesTableHTML(limited.rows,{deleteText:true,showDuplicate:false});
+  const mobile=isMobileView();
+  const limited=visibleRows(rows,mobile?MAX_MOBILE_TABLE_ROWS:MAX_TABLE_ROWS);
+  const notice=limited.hidden?`<div class="alert" style="background:var(--amber-bg);color:var(--amber-text)">Aus Leistungsgründen werden die neuesten ${limited.rows.length} Einträge angezeigt. Grenze den Zeitraum ein, um ältere Verkäufe zu sehen.</div>`:'';
+  document.getElementById('sales-table').innerHTML=notice+salesTableHTML(limited.rows,{deleteText:true,mobileOnly:mobile,desktopOnly:!mobile});
   animateVisibleContent(document.getElementById('page-sales'));
 }
 

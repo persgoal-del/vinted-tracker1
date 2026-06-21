@@ -190,6 +190,8 @@
   .planning-item.danger .planning-reorder{color:var(--red-text)}
   .planning-item.warn,.planning-item.danger{animation:stockPulse 1.9s ease-in-out infinite}
   .mobile-list{display:none}
+  #sales-table>.alert{margin:12px}
+  #sales-table>.mobile-list{padding:12px}
   .sale-card{background:var(--glass);border:0.5px solid var(--glass-border);border-radius:var(--radius);padding:12px;display:grid;gap:8px;box-shadow:var(--glass-shadow-soft),var(--glass-inset);backdrop-filter:blur(18px) saturate(1.25);-webkit-backdrop-filter:blur(18px) saturate(1.25);transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease,background .22s ease}
   .sale-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .sale-card-title{font-weight:600;margin-top:6px}
@@ -361,7 +363,6 @@
     *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
   }
 
-
 /* Firebase Login */
 #firebase-auth-overlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,rgba(248,247,244,.9),rgba(232,245,238,.92));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .firebase-auth-card{width:min(430px,100%);background:var(--glass-strong,var(--bg2));border:0.5px solid var(--glass-border,var(--border));border-radius:24px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.18);display:grid;gap:12px}
@@ -370,5 +371,5 @@
 .firebase-auth-card p{font-size:13px;color:var(--text2);margin:0 0 4px}
 #firebase-auth-error{min-height:18px;color:var(--red);font-size:13px}
 .firebase-auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
-.firebase-user-badge{margin-left:auto;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.firebase-user-badge{margin-left:auto}
 @media(max-width:700px){.firebase-user-badge{display:none}.firebase-auth-card{padding:22px}}
