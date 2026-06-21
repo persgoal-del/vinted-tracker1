@@ -7,30 +7,6 @@ const firebaseConfig = {
   appId: "1:684779553961:web:e4af37ed9e9cb3e9cc55b8"
 };
 
-function initWidgetFirebase(){
-  if(!window.firebase)return null;
-  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
-  return {auth:firebase.auth(),firestore:firebase.firestore()};
-}
-
-function waitWidgetUser(auth){
-  return new Promise(resolve=>{
-    const stop=auth.onAuthStateChanged(user=>{stop();resolve(user||null)});
-    setTimeout(()=>resolve(auth.currentUser||null),1200);
-  });
-}
-
-async function loadWidgetRemote(){
-  try{
-    const fb=initWidgetFirebase();
-    if(!fb)return null;
-    const user=await waitWidgetUser(fb.auth);
-    if(!user)return null;
-    const snap=await fb.firestore.collection('users').doc(user.uid).collection('data').doc('app').get();
-    return snap.exists?snap.data():null;
-  }catch(e){return null}
-}
-
 const WIDGET_DB_NAME='vinted-tracker-db';
 const WIDGET_DB_VERSION=1;
 
@@ -65,9 +41,7 @@ async function widgetGet(db,key){
   });
 }
 
-async function loadWidgetData(){
-  const remote=await loadWidgetRemote();
-  if(remote)return {sales:remote.sales||[],expenses:remote.expenses||[],meta:remote.meta||{}};
+async function loadWidgetLocalData(){
   const db=await openWidgetDB();
   if(db){
     const sales=await widgetGet(db,'sales');
@@ -80,6 +54,25 @@ async function loadWidgetData(){
     expenses:widgetJSON(localStorage.getItem('vinted_expenses'),[]),
     meta:widgetJSON(localStorage.getItem('vinted_meta'),{})
   };
+}
+
+async function loadWidgetFirebaseData(){
+  if(!window.firebase)return null;
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth();
+    const user=await new Promise(resolve=>auth.onAuthStateChanged(resolve));
+    if(!user)return null;
+    const doc=await firebase.firestore().collection('users').doc(user.uid).collection('data').doc('app').get();
+    return doc.exists?doc.data():null;
+  }catch(err){
+    console.warn('Widget Firebase nicht verfügbar',err);
+    return null;
+  }
+}
+
+async function loadWidgetData(){
+  return (await loadWidgetFirebaseData()) || (await loadWidgetLocalData());
 }
 
 function renderWidget(data){

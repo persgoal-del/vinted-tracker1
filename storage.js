@@ -1,5 +1,5 @@
 // Firebase + lokale Fallback-Speicherung für den Vinted Tracker
-// Läuft auf GitHub Pages und synchronisiert pro eingeloggtem Firebase-User.
+// Synchronisiert Verkäufe, Ausgaben, Produkte, Meta und Snapshots pro Firebase-User.
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZ9Da1GiE4661W67MS-MEQ2gPNWKAk6I4",
@@ -13,7 +13,8 @@ const firebaseConfig = {
 const STORAGE_DB_NAME='vinted-tracker-db';
 const STORAGE_DB_VERSION=1;
 const FIRESTORE_COLLECTION='users';
-const FIRESTORE_DOC_PATH='data/app';
+const FIRESTORE_DOC_COLLECTION='data';
+const FIRESTORE_DOC_ID='app';
 
 let storageDBPromise=null;
 let storageFallback=false;
@@ -22,11 +23,11 @@ let firebaseAuth=null;
 let firebaseFirestore=null;
 let currentUser=null;
 let unsubscribeRemote=null;
-let remoteReadyResolve=null;
+let remoteLoaded=false;
 let isApplyingRemote=false;
-let lastRemoteUpdateAt=0;
-let saveTimer=null;
+let pendingSaveTimer=null;
 let pendingSaveData=null;
+let authReadyPromise=null;
 
 function safeJSON(value,fallback){
   try{return value?JSON.parse(value):fallback}catch{return fallback}
@@ -91,7 +92,7 @@ function loadFromLocalStorage(){
     sales:normalizedSales,
     expenses:(expenses||[]).map(normalizeExpense),
     products:buildProductsFromSales(normalizedSales,products),
-    meta:{...(meta||{}),storage:'local'},
+    meta:{...(meta||{}),storage:'localStorage'},
     snapshots:snapshots||[]
   };
 }
@@ -149,9 +150,19 @@ function normalizeDataObject(data){
   };
 }
 
+function serializeDataObject(data){
+  return {
+    sales: data.sales||[],
+    expenses: data.expenses||[],
+    products: data.products||[],
+    meta: {...(data.meta||{}),storage:'firebase',updatedAt:new Date().toISOString()},
+    snapshots: data.snapshots||[]
+  };
+}
+
 function getFirebaseDocRef(){
   if(!currentUser||!firebaseFirestore)return null;
-  return firebaseFirestore.collection(FIRESTORE_COLLECTION).doc(currentUser.uid).collection('data').doc('app');
+  return firebaseFirestore.collection(FIRESTORE_COLLECTION).doc(currentUser.uid).collection(FIRESTORE_DOC_COLLECTION).doc(FIRESTORE_DOC_ID);
 }
 
 function initFirebaseIfPossible(){
@@ -173,6 +184,7 @@ function ensureAuthOverlay(){
   overlay.id='firebase-auth-overlay';
   overlay.innerHTML=`
     <div class="firebase-auth-card">
+      <div class="firebase-auth-logo">PH</div>
       <h2>Vinted Tracker anmelden</h2>
       <p>Mit derselben E-Mail auf Mac und iPhone anmelden, dann synchronisieren sich alle Verkäufe automatisch.</p>
       <div id="firebase-auth-error"></div>
@@ -224,123 +236,113 @@ async function firebaseLogin(register){
   }
 }
 
-function addAuthBar(){
-  if(document.getElementById('firebase-user-bar'))return;
-  const topbar=document.querySelector('.topbar .toolbar')||document.querySelector('.topbar');
-  if(!topbar)return;
-  const bar=document.createElement('span');
-  bar.id='firebase-user-bar';
-  bar.style.fontSize='12px';
-  bar.style.color='var(--text3)';
-  bar.style.display='inline-flex';
-  bar.style.alignItems='center';
-  bar.style.gap='8px';
-  bar.innerHTML=`<span id="firebase-user-email"></span><button class="btn" id="firebase-logout-btn" type="button">Logout</button>`;
-  topbar.appendChild(bar);
-  document.getElementById('firebase-logout-btn').onclick=()=>firebaseAuth.signOut();
+function installUserBadge(){
+  if(document.getElementById('firebase-user-badge'))return;
+  const bar=document.querySelector('.topbar');
+  if(!bar)return;
+  const badge=document.createElement('button');
+  badge.id='firebase-user-badge';
+  badge.className='btn firebase-user-badge';
+  badge.type='button';
+  badge.onclick=()=>firebaseAuth?.signOut();
+  badge.title='Abmelden';
+  bar.appendChild(badge);
 }
 
-function updateAuthBar(){
-  addAuthBar();
-  const email=document.getElementById('firebase-user-email');
-  if(email)email.textContent=currentUser?.email?`Sync: ${currentUser.email}`:'Lokaler Modus';
+function updateUserBadge(){
+  installUserBadge();
+  const badge=document.getElementById('firebase-user-badge');
+  if(badge)badge.innerHTML=`<i class="ti ti-cloud-check"></i> ${currentUser?.email||'Online'}`;
 }
 
-function waitForFirebaseUser(){
-  if(!initFirebaseIfPossible())return Promise.resolve(null);
+function refreshAfterRemote(){
+  if(typeof refreshCurrentView==='function')refreshCurrentView();
+  else if(typeof renderDashboard==='function')renderDashboard();
+  if(typeof updateMobileNavIndicator==='function')updateMobileNavIndicator();
+}
+
+async function waitForFirebaseAuth(){
+  if(!initFirebaseIfPossible())return null;
+  if(authReadyPromise)return authReadyPromise;
   ensureAuthOverlay();
-  return new Promise(resolve=>{
+  authReadyPromise=new Promise(resolve=>{
     firebaseAuth.onAuthStateChanged(user=>{
       currentUser=user;
-      updateAuthBar();
       if(user){
         showAuthOverlay(false);
+        updateUserBadge();
         resolve(user);
       }else{
-        if(unsubscribeRemote){unsubscribeRemote();unsubscribeRemote=null;}
         showAuthOverlay(true);
       }
     });
   });
+  return authReadyPromise;
 }
 
-async function loadRemoteOrCreateFromLocal(){
-  const localData=await loadLocalData();
-  await waitForFirebaseUser();
-  if(!currentUser)return localData;
-
+async function loadRemoteData(){
   const ref=getFirebaseDocRef();
-  const snap=await ref.get();
-  if(snap.exists){
-    const remote=normalizeDataObject(snap.data());
-    await saveLocalDataObject(remote);
-    startRemoteListener();
-    return remote;
-  }
-
-  const firstData=normalizeDataObject(localData);
-  firstData.meta={...(firstData.meta||{}),storage:'firebase',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-  await ref.set(firstData,{merge:true});
-  await saveLocalDataObject(firstData);
-  startRemoteListener();
-  return firstData;
+  if(!ref)return null;
+  const doc=await ref.get();
+  if(!doc.exists)return null;
+  return normalizeDataObject(doc.data());
 }
 
-function startRemoteListener(){
+function subscribeRemote(){
   if(unsubscribeRemote)unsubscribeRemote();
   const ref=getFirebaseDocRef();
   if(!ref)return;
-  unsubscribeRemote=ref.onSnapshot(snap=>{
-    if(!snap.exists)return;
-    const remote=normalizeDataObject(snap.data());
-    const updatedAt=Date.parse(remote.meta?.updatedAt||remote.meta?.createdAt||0)||0;
-    if(updatedAt&&updatedAt<lastRemoteUpdateAt)return;
-    lastRemoteUpdateAt=updatedAt||Date.now();
-    saveLocalDataObject(remote);
-    if(typeof DB!=='undefined'){
-      isApplyingRemote=true;
-      DB=remote;
-      isApplyingRemote=false;
-      if(typeof refreshCurrentView==='function')refreshCurrentView();
-      else if(typeof renderDashboard==='function')renderDashboard();
-    }
-  },error=>console.warn('Firebase Sync Fehler',error));
+  unsubscribeRemote=ref.onSnapshot(async doc=>{
+    if(!doc.exists||!remoteLoaded)return;
+    if(doc.metadata.hasPendingWrites)return;
+    const remote=normalizeDataObject(doc.data());
+    isApplyingRemote=true;
+    window.DB=DB=remote;
+    await saveLocalDataObject(remote);
+    isApplyingRemote=false;
+    refreshAfterRemote();
+  },err=>console.error('Firebase Sync Fehler',err));
 }
 
 async function loadData(){
-  if(!window.firebase){
-    const data=await loadLocalData();
-    return data;
+  const local=await loadLocalData();
+  if(!initFirebaseIfPossible())return local;
+  await waitForFirebaseAuth();
+  const ref=getFirebaseDocRef();
+  if(!ref)return local;
+  let remote=await loadRemoteData();
+  if(!remote){
+    remote=normalizeDataObject(local);
+    await ref.set(serializeDataObject(remote),{merge:true});
   }
-  try{
-    return await loadRemoteOrCreateFromLocal();
-  }catch(error){
-    console.warn('Firebase nicht erreichbar, nutze lokale Daten:',error);
-    const data=await loadLocalData();
-    data.meta={...(data.meta||{}),storage:'local-offline'};
-    return data;
-  }
+  remoteLoaded=true;
+  await saveLocalDataObject(remote);
+  subscribeRemote();
+  return remote;
 }
 
 async function saveDataObject(data){
-  await saveLocalDataObject(data);
-  if(!currentUser||!firebaseFirestore||isApplyingRemote)return;
-  pendingSaveData=normalizeDataObject(data);
-  pendingSaveData.meta={...(pendingSaveData.meta||{}),storage:'firebase',updatedAt:new Date().toISOString(),updatedBy:currentUser.uid};
-  clearTimeout(saveTimer);
-  saveTimer=setTimeout(async()=>{
-    const toSave=pendingSaveData;
-    pendingSaveData=null;
-    try{
-      await getFirebaseDocRef().set(toSave,{merge:true});
-    }catch(error){
-      console.warn('Speichern in Firebase fehlgeschlagen:',error);
-      const status=document.getElementById('backup-status');
-      if(status)status.textContent='Offline gespeichert – Sync folgt später';
-    }
-  },250);
+  const normalized=normalizeDataObject(data);
+  await saveLocalDataObject(normalized);
+  if(!initFirebaseIfPossible()||!currentUser)return;
+  const ref=getFirebaseDocRef();
+  if(ref)await ref.set(serializeDataObject(normalized),{merge:true});
+}
+
+function flushPendingSave(){
+  if(!pendingSaveData)return;
+  const data=pendingSaveData;
+  pendingSaveData=null;
+  clearTimeout(pendingSaveTimer);
+  pendingSaveTimer=null;
+  saveDataObject(data).catch(err=>console.error('Speichern fehlgeschlagen',err));
 }
 
 function saveData(){
-  saveDataObject(DB);
+  if(isApplyingRemote)return;
+  pendingSaveData=JSON.parse(JSON.stringify(DB));
+  clearTimeout(pendingSaveTimer);
+  pendingSaveTimer=setTimeout(flushPendingSave,120);
 }
+
+window.addEventListener('beforeunload',flushPendingSave);

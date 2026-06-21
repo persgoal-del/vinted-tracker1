@@ -18,7 +18,7 @@
 <body>
 <div id="app-splash" class="app-splash" aria-hidden="true">
   <div class="splash-card">
-    <div class="splash-logo"><i class="ti ti-hanger-2"></i></div>
+    <div class="splash-logo ph-logo">PH</div>
     <div class="splash-title">Vinted Tracker</div>
     <div class="splash-bar"><span></span></div>
   </div>
@@ -26,7 +26,7 @@
 <div class="app">
   <aside class="sidebar">
     <div class="sidebar-logo">
-      <h1>Vinted Tracker</h1>
+      <div class="brand-row"><span class="brand-mark">PH</span><h1>Vinted Tracker</h1></div>
       <p>Per Hellberg · 2026</p>
     </div>
     <div class="section-label">Übersicht</div>
@@ -125,6 +125,10 @@
             <div class="card-title">Bestand nach Rohlingstyp</div>
             <div id="stock-overview"></div>
           </div>
+          <div class="card">
+            <div class="card-title">Bestandsplanung</div>
+            <div id="stock-planning"></div>
+          </div>
         </div>
       </div>
 
@@ -136,14 +140,19 @@
           <div class="form-row">
             <div class="form-group">
               <label>Produkt</label>
-              <select id="c-product"></select>
+              <select id="c-product" onchange="suggestCancelMatches()"></select>
             </div>
             <div class="form-group">
               <label>Storno-Betrag (€)</label>
-              <input type="number" id="c-revenue" step="0.01" placeholder="0.00">
+              <input type="number" id="c-revenue" step="0.01" placeholder="0.00" oninput="suggestCancelMatches()">
             </div>
           </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label>Kaufdatum optional</label>
+            <input type="date" id="c-date" onchange="suggestCancelMatches()">
+          </div>
           <button class="btn btn-danger" onclick="cancelMatchingSale()"><i class="ti ti-receipt-refund"></i> Passenden Verkauf stornieren</button>
+          <div id="cancel-suggestions"></div>
         </div>
       </div>
 
@@ -415,6 +424,8 @@
           <div class="card-title">Packliste</div>
           <div class="inline-actions" style="margin-bottom:1rem">
             <button class="btn" onclick="window.print()"><i class="ti ti-printer"></i> Drucken</button>
+            <button class="btn btn-primary" onclick="markPackedAsShipped()"><i class="ti ti-package-export"></i> Gepackte versenden</button>
+            <button class="btn" onclick="clearPacklistChecks()"><i class="ti ti-eraser"></i> Haken leeren</button>
           </div>
           <div id="packlist"></div>
         </div>
@@ -533,6 +544,7 @@
 </div>
 
 <button class="fab" onclick="nav('new-sale')" aria-label="Neuen Verkauf erfassen"><i class="ti ti-plus"></i></button>
+
 
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
