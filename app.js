@@ -296,7 +296,8 @@ function normalizeSale(s){
 function normalizeExpense(e){
   const qty=+e.qty||0;
   const unit=+e.unit||0;
-  return {id:+e.id||0,date:e.date||'',product:e.product||'Sonstiges',kind:e.kind==='sonstige'?'sonstige':'rohling',qty,unit,total:+(e.total||qty*unit).toFixed(2),note:e.note||''};
+  const validKind=['rohling','dtf','verpackung','sonstige'];
+  return {id:+e.id||0,date:e.date||'',product:e.product||'Sonstiges',kind:validKind.includes(e.kind)?e.kind:(e.kind==='sonstige'?'sonstige':'rohling'),qty,unit,total:+(e.total||qty*unit).toFixed(2),note:e.note||''};
 }
 let DB={sales:[],expenses:[],products:[],meta:{}};
 let dashboardRange='all';
@@ -462,7 +463,7 @@ function nav(page){
   if(page==='expenses')renderExpenses();
   if(page==='products')renderProducts();
   if(page==='new-sale'){resetSaleForm();populateProductSelects();setTodayDate('s-date');document.getElementById('sale-alert').innerHTML=''}
-  if(page==='new-expense'){setTodayDate('e-date');document.getElementById('exp-alert').innerHTML=''}
+  if(page==='new-expense'){resetExpenseForm();setTodayDate('e-date');document.getElementById('exp-alert').innerHTML=''}
   animatePage(page);
 }
 function setTodayDate(id){document.getElementById(id).value=localDateISO()}
@@ -760,7 +761,7 @@ function soldUnitsByType(){
 }
 
 function stockStats(){
-  const bought=DB.expenses.filter(e=>e.kind!=='sonstige').reduce((map,e)=>{map[e.product]=(map[e.product]||0)+(e.qty||0);return map},{});
+  const bought=DB.expenses.filter(e=>e.kind==='rohling').reduce((map,e)=>{map[e.product]=(map[e.product]||0)+(e.qty||0);return map},{});
   const sold=soldUnitsByType();
   const types=[...new Set([...Object.keys(bought),...Object.keys(sold),'Hose','Tshirt','Pullover','Armband'])].filter(Boolean);
   return {bought,sold,types};
@@ -811,8 +812,12 @@ function salesCardsHTML(rows,options={}){
   return `<div class="mobile-list">${rows.map(s=>`
     <div class="sale-card" data-sale-id="${s.id}">
       <div class="sale-card-head">
-        <div><button class="id-link" onclick="editSale(${s.id})">#${s.id}</button><div class="sale-card-title">${esc(s.art)}</div><div class="sale-card-meta">${fmtDate(s.date)} · Ausführung ${fmtDate(s.ship)}${s.note?' · '+esc(s.note):''}</div></div>
+        <div><button class="id-link" onclick="editSale(${s.id})">#${s.id}</button><div class="sale-card-title">${esc(s.art)}</div>${s.note?`<div class="sale-card-meta">${esc(s.note)}</div>`:''}</div>
         <span class="badge ${statusClass(s.status)}">${statusLabel(s.status)}</span>
+      </div>
+      <div class="sale-card-dates">
+        <div><span>Verkauft</span><strong>${fmtDate(s.date)}</strong></div>
+        <div><span>Ausführung</span><strong>${fmtDate(s.ship)}</strong></div>
       </div>
       <div class="sale-card-grid">
         <div class="sale-card-stat"><span>Umsatz</span>${fmt(realizedRevenue(s)||s.rev)}</div>
@@ -824,7 +829,6 @@ function salesCardsHTML(rows,options={}){
 }
 
 function renderSalesTable(){
-  const q=(document.getElementById('search')||{}).value?.toLowerCase()||'';
   const catF=(document.getElementById('filter-cat')||{}).value||'';
   const statusF=(document.getElementById('filter-status')||{}).value||'';
   const from=(document.getElementById('filter-from')||{}).value||'';
@@ -840,8 +844,6 @@ function renderSalesTable(){
 
   let rows=[...DB.sales].sort(sortSalesNewest).filter(s=>{
     const c=cat(s.art);
-    const hay=[s.art,c,s.note||'',String(s.id)].join(' ').toLowerCase();
-    if(q&&!hay.includes(q))return false;
     if(from&&s.date<from)return false;
     if(to&&s.date>to)return false;
     if(catF&&c!==catF)return false;
@@ -1137,7 +1139,7 @@ function fifoBatchForProduct(art,excludeSaleId=null){
   if(types.length!==1)return null;
   const type=types[0];
   const batches=DB.expenses
-    .filter(e=>e.kind!=='sonstige'&&e.product===type&&e.qty>0)
+    .filter(e=>e.kind==='rohling'&&e.product===type&&e.qty>0)
     .sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id)
     .map(e=>({...e,remaining:e.qty}));
   DB.sales
@@ -1370,46 +1372,119 @@ function toggleProduct(index){
   commitChange('Produktstatus geändert',renderProducts,before);
 }
 
+let expenseCalcMode='unit';
+
 function calcExpTotal(){
   const qty=parseInt(document.getElementById('e-qty').value)||0;
   const unit=parseFloat(document.getElementById('e-unit').value)||0;
-  document.getElementById('e-total').value=(qty*unit).toFixed(2)||'';
+  const total=parseFloat(document.getElementById('e-total').value)||0;
+  if(expenseCalcMode==='total'&&qty>0&&total>0){
+    document.getElementById('e-unit').value=(total/qty).toFixed(2);
+    return;
+  }
+  document.getElementById('e-total').value=qty&&unit?(qty*unit).toFixed(2):'';
+}
+
+function calcExpenseFromUnit(){
+  expenseCalcMode='unit';
+  calcExpTotal();
+}
+
+function calcExpenseFromTotal(){
+  expenseCalcMode='total';
+  calcExpTotal();
+}
+
+function syncExpenseKind(){
+  const product=document.getElementById('e-product')?.value||'';
+  const kind=document.getElementById('e-kind');
+  if(!kind)return;
+  if(product==='DTF Druck')kind.value='dtf';
+  if(product==='Verpackungsmaterial')kind.value='verpackung';
+  if(product==='Sonstiges')kind.value='sonstige';
+}
+
+function expenseKindLabel(kind){
+  return {rohling:'Rohling',dtf:'DTF Druck',verpackung:'Verpackungsmaterial',sonstige:'Sonstige'}[kind]||'Sonstige';
+}
+
+function resetExpenseForm(){
+  expenseCalcMode='unit';
+  const ids=['e-edit-id','e-date','e-qty','e-unit','e-total','e-note'];
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  const product=document.getElementById('e-product');
+  const kind=document.getElementById('e-kind');
+  if(product)product.value='';
+  if(kind)kind.value='rohling';
+  const title=document.getElementById('expense-form-title');
+  if(title)title.textContent='Neue Ausgabe erfassen';
+  const alert=document.getElementById('exp-alert');
+  if(alert)alert.innerHTML='';
 }
 
 function addExpense(){
+  const editId=parseInt(document.getElementById('e-edit-id').value,10)||null;
   const date=document.getElementById('e-date').value;
   const qty=parseInt(document.getElementById('e-qty').value)||0;
   const product=document.getElementById('e-product').value;
   const kind=document.getElementById('e-kind').value;
   const unit=parseFloat(document.getElementById('e-unit').value)||0;
+  const total=parseFloat(document.getElementById('e-total').value)||0;
   const note=document.getElementById('e-note').value;
-  if(!date||!product||qty<=0||unit<=0){
+  const finalUnit=unit>0?unit:(qty>0&&total>0?total/qty:0);
+  const finalTotal=total>0?total:qty*finalUnit;
+  if(!date||!product||qty<=0||finalUnit<=0||finalTotal<=0){
     document.getElementById('exp-alert').innerHTML='<div class="alert" style="background:var(--red-bg);color:var(--red-text)">Bitte alle Felder ausfüllen.</div>';return;
   }
-  const id=Math.max(0,...(DB.expenses.length?DB.expenses.map(e=>e.id):[0]))+1;
   const before=cloneData();
-  DB.expenses.push(normalizeExpense({id,date,product,kind,qty,unit,total:+(qty*unit).toFixed(2),note}));
-  commitChange('Ausgabe gespeichert',()=>{},before);
-  document.getElementById('exp-alert').innerHTML='<div class="alert alert-success">Ausgabe gespeichert!</div>';
+  if(editId){
+    DB.expenses=DB.expenses.map(e=>e.id===editId?normalizeExpense({id:editId,date,product,kind,qty,unit:+finalUnit.toFixed(2),total:+finalTotal.toFixed(2),note}):e);
+  }else{
+    const id=Math.max(0,...(DB.expenses.length?DB.expenses.map(e=>e.id):[0]))+1;
+    DB.expenses.push(normalizeExpense({id,date,product,kind,qty,unit:+finalUnit.toFixed(2),total:+finalTotal.toFixed(2),note}));
+  }
+  commitChange(editId?'Ausgabe geändert':'Ausgabe gespeichert',()=>{},before);
+  document.getElementById('exp-alert').innerHTML=`<div class="alert alert-success">${editId?'Ausgabe geändert!':'Ausgabe gespeichert!'}</div>`;
   setTimeout(()=>nav('expenses'),1000);
+}
+
+function editExpense(id){
+  const exp=DB.expenses.find(e=>e.id===id);
+  if(!exp)return;
+  nav('new-expense');
+  document.getElementById('e-edit-id').value=exp.id;
+  document.getElementById('e-date').value=exp.date||'';
+  document.getElementById('e-product').value=exp.product||'';
+  document.getElementById('e-kind').value=exp.kind||'rohling';
+  document.getElementById('e-qty').value=exp.qty||'';
+  document.getElementById('e-unit').value=exp.unit||'';
+  document.getElementById('e-total').value=exp.total||'';
+  document.getElementById('e-note').value=exp.note||'';
+  document.getElementById('expense-form-title').textContent='Ausgabe bearbeiten';
+  document.getElementById('exp-alert').innerHTML='';
 }
 
 function renderExpenses(){
   const exps=DB.expenses;
   const total=exps.reduce((a,e)=>a+(e.total||0),0);
-  const stockExps=exps.filter(e=>e.kind!=='sonstige');
+  const stockExps=exps.filter(e=>e.kind==='rohling');
   const stockTotal=stockExps.reduce((a,e)=>a+(e.total||0),0);
-  const otherTotal=exps.filter(e=>e.kind==='sonstige').reduce((a,e)=>a+(e.total||0),0);
+  const otherTotal=exps.filter(e=>e.kind!=='rohling').reduce((a,e)=>a+(e.total||0),0);
+  const dtfTotal=exps.filter(e=>e.kind==='dtf').reduce((a,e)=>a+(e.total||0),0);
+  const packagingTotal=exps.filter(e=>e.kind==='verpackung').reduce((a,e)=>a+(e.total||0),0);
   const qty=stockExps.reduce((a,e)=>a+(e.qty||0),0);
   document.getElementById('exp-metrics').innerHTML=`
     <div class="metric"><div class="metric-label">Gesamtausgaben</div><div class="metric-value" style="color:var(--red)">${fmt(total)}</div><div class="metric-sub">${exps.length} Bestellungen</div></div>
     <div class="metric"><div class="metric-label">Rohlinge gesamt</div><div class="metric-value">${qty}</div><div class="metric-sub">Stück eingekauft</div></div>
     <div class="metric"><div class="metric-label">Ø pro Rohling</div><div class="metric-value">${qty?fmt(stockTotal/qty):fmt(0)}</div></div>
-    <div class="metric"><div class="metric-label">Sonstige Kosten</div><div class="metric-value" style="color:var(--red)">${fmt(otherTotal)}</div><div class="metric-sub">ohne Bestand</div></div>
+    <div class="metric"><div class="metric-label">DTF Druck</div><div class="metric-value" style="color:var(--red)">${fmt(dtfTotal)}</div><div class="metric-sub">Druckkosten</div></div>
+    <div class="metric"><div class="metric-label">Verpackung</div><div class="metric-value" style="color:var(--red)">${fmt(packagingTotal)}</div><div class="metric-sub">Material</div></div>
+    <div class="metric"><div class="metric-label">Nicht-Bestand</div><div class="metric-value" style="color:var(--red)">${fmt(otherTotal)}</div><div class="metric-sub">DTF, Verpackung, Sonstiges</div></div>
   `;
   if(!exps.length){document.getElementById('exp-table').innerHTML=emptyState('ti-receipt','Noch keine Ausgaben','Erfasse deine ersten Rohlingkosten, damit Gewinn und Bestand genauer werden.',`<button class="btn btn-primary" onclick="nav('new-expense')"><i class="ti ti-plus"></i> Erste Ausgabe</button>`);return}
   document.getElementById('exp-table').innerHTML=`<table><thead><tr><th>Datum</th><th>Art</th><th>Produkt</th><th>Anzahl</th><th>€/Stück</th><th>Gesamt</th><th>Notiz</th><th></th></tr></thead><tbody>${exps.sort((a,b)=>new Date(b.date)-new Date(a.date)).map(e=>`
-    <tr><td>${fmtDate(e.date)}</td><td>${e.kind==='sonstige'?'Sonstige':'Rohling'}</td><td>${esc(e.product)}</td><td>${e.qty}</td><td>${fmt(e.unit)}</td><td class="profit-neg">${fmt(e.total)}</td><td style="color:var(--text2);font-size:12px">${e.note?esc(e.note):'—'}</td><td><button class="btn btn-danger" onclick="deleteExp(${e.id})" style="padding:4px 8px;font-size:11px"><i class="ti ti-trash" aria-hidden="true"></i></button></td></tr>`).join('')}</tbody></table>`;
+    <tr><td>${fmtDate(e.date)}</td><td>${expenseKindLabel(e.kind)}</td><td>${esc(e.product)}</td><td>${e.qty}</td><td>${fmt(e.unit)}</td><td class="profit-neg">${fmt(e.total)}</td><td style="color:var(--text2);font-size:12px">${e.note?esc(e.note):'—'}</td><td><div class="action-row"><button class="btn" onclick="editExpense(${e.id})" style="padding:4px 8px;font-size:11px"><i class="ti ti-pencil" aria-hidden="true"></i></button><button class="btn btn-danger" onclick="deleteExp(${e.id})" style="padding:4px 8px;font-size:11px"><i class="ti ti-trash" aria-hidden="true"></i></button></div></td></tr>`).join('')}</tbody></table>`;
+  animateVisibleContent(document.getElementById('page-expenses'));
 }
 
 function deleteExp(id){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1a6b4a">
+<meta name="theme-color" content="#007782">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Vinted">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -307,7 +307,6 @@
       <!-- ALLE VERKÄUFE -->
       <div id="page-sales" class="page">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;flex-wrap:wrap">
-          <input type="text" id="search" placeholder="Suchen..." style="max-width:200px" oninput="renderSalesTable()">
           <input type="date" id="filter-from" onchange="renderSalesTable()" style="max-width:150px">
           <input type="date" id="filter-to" onchange="renderSalesTable()" style="max-width:150px">
           <select id="filter-cat" onchange="renderSalesTable()" style="max-width:180px">
@@ -467,26 +466,29 @@
       <!-- NEUE AUSGABE -->
       <div id="page-new-expense" class="page">
         <div class="card" style="max-width:540px">
-          <div class="card-title">Neue Rohlingsausgabe erfassen</div>
+          <div class="card-title" id="expense-form-title">Neue Ausgabe erfassen</div>
           <div id="exp-alert"></div>
+          <input type="hidden" id="e-edit-id">
           <div class="form-row">
             <div class="form-group">
               <label>Datum</label>
               <input type="date" id="e-date">
             </div>
             <div class="form-group">
-              <label>Anzahl Rohlinge</label>
+              <label>Anzahl</label>
               <input type="number" id="e-qty" min="1" placeholder="z.B. 50" oninput="calcExpTotal()">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:12px">
             <label>Produkt / Typ</label>
-            <select id="e-product">
+            <select id="e-product" onchange="syncExpenseKind()">
               <option value="">Typ wählen...</option>
               <option value="Hose">Hose</option>
               <option value="Tshirt">Tshirt</option>
               <option value="Pullover">Pullover</option>
               <option value="Armband">Armband</option>
+              <option value="DTF Druck">DTF Druck</option>
+              <option value="Verpackungsmaterial">Verpackungsmaterial</option>
               <option value="Sonstiges">Sonstiges</option>
             </select>
           </div>
@@ -494,17 +496,19 @@
             <label>Kostenart</label>
             <select id="e-kind">
               <option value="rohling">Rohlinge / Bestand</option>
+              <option value="dtf">DTF Druck</option>
+              <option value="verpackung">Verpackungsmaterial</option>
               <option value="sonstige">Sonstige Kosten</option>
             </select>
           </div>
           <div class="form-row">
             <div class="form-group">
               <label>Preis pro Stück (€)</label>
-              <input type="number" id="e-unit" step="0.01" placeholder="0.00" oninput="calcExpTotal()">
+              <input type="number" id="e-unit" step="0.01" placeholder="0.00" oninput="calcExpenseFromUnit()">
             </div>
             <div class="form-group">
               <label>Gesamt (€)</label>
-              <input type="number" id="e-total" step="0.01" placeholder="—" readonly style="opacity:0.6">
+              <input type="number" id="e-total" step="0.01" placeholder="0.00" oninput="calcExpenseFromTotal()">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
@@ -513,7 +517,7 @@
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary" onclick="addExpense()"><i class="ti ti-check"></i> Speichern</button>
-            <button class="btn" onclick="nav('expenses')">Abbrechen</button>
+            <button class="btn" onclick="resetExpenseForm();nav('expenses')">Abbrechen</button>
           </div>
         </div>
       </div>

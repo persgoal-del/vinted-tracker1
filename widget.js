@@ -1,3 +1,36 @@
+const firebaseConfig = {
+  apiKey: "AIzaSyBZ9Da1GiE4661W67MS-MEQ2gPNWKAk6I4",
+  authDomain: "vinted-tracker-2958c.firebaseapp.com",
+  projectId: "vinted-tracker-2958c",
+  storageBucket: "vinted-tracker-2958c.firebasestorage.app",
+  messagingSenderId: "684779553961",
+  appId: "1:684779553961:web:e4af37ed9e9cb3e9cc55b8"
+};
+
+function initWidgetFirebase(){
+  if(!window.firebase)return null;
+  if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+  return {auth:firebase.auth(),firestore:firebase.firestore()};
+}
+
+function waitWidgetUser(auth){
+  return new Promise(resolve=>{
+    const stop=auth.onAuthStateChanged(user=>{stop();resolve(user||null)});
+    setTimeout(()=>resolve(auth.currentUser||null),1200);
+  });
+}
+
+async function loadWidgetRemote(){
+  try{
+    const fb=initWidgetFirebase();
+    if(!fb)return null;
+    const user=await waitWidgetUser(fb.auth);
+    if(!user)return null;
+    const snap=await fb.firestore.collection('users').doc(user.uid).collection('data').doc('app').get();
+    return snap.exists?snap.data():null;
+  }catch(e){return null}
+}
+
 const WIDGET_DB_NAME='vinted-tracker-db';
 const WIDGET_DB_VERSION=1;
 
@@ -33,6 +66,8 @@ async function widgetGet(db,key){
 }
 
 async function loadWidgetData(){
+  const remote=await loadWidgetRemote();
+  if(remote)return {sales:remote.sales||[],expenses:remote.expenses||[],meta:remote.meta||{}};
   const db=await openWidgetDB();
   if(db){
     const sales=await widgetGet(db,'sales');

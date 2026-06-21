@@ -301,7 +301,8 @@ function startRemoteListener(){
       isApplyingRemote=true;
       DB=remote;
       isApplyingRemote=false;
-      if(typeof renderDashboard==='function')renderDashboard();
+      if(typeof refreshCurrentView==='function')refreshCurrentView();
+      else if(typeof renderDashboard==='function')renderDashboard();
     }
   },error=>console.warn('Firebase Sync Fehler',error));
 }

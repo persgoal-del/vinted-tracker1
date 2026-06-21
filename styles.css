@@ -156,6 +156,10 @@
   .sale-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .sale-card-title{font-weight:600;margin-top:6px}
   .sale-card-meta{font-size:12px;color:var(--text2)}
+  .sale-card-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .sale-card-dates div{background:var(--bg3);border-radius:var(--radius);padding:8px}
+  .sale-card-dates span{display:block;font-size:10px;color:var(--text3);text-transform:uppercase}
+  .sale-card-dates strong{display:block;font-size:12px;color:var(--text);margin-top:2px}
   .sale-card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
   .sale-card-stat{background:var(--bg3);border-radius:var(--radius);padding:8px}
   .sale-card-stat span{display:block;font-size:10px;color:var(--text3);text-transform:uppercase}
@@ -257,7 +261,6 @@
     .form-group label{font-size:11px;text-transform:uppercase;letter-spacing:.04em}
     #page-sales>div:first-child{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;align-items:stretch!important}
     #page-sales>div:first-child input,#page-sales>div:first-child select{max-width:none!important}
-    #search{grid-column:1/-1}
     #sales-count{grid-column:1/-1;padding-left:2px}
     .table-wrap{margin:0;overflow:visible}
     .desktop-table{display:none}
@@ -267,6 +270,8 @@
     .sale-card{border-radius:16px;padding:14px;border-color:transparent;box-shadow:0 8px 24px rgba(0,0,0,0.06)}
     .sale-card-title{font-size:15px}
     .sale-card-meta{font-size:11px}
+    .sale-card-dates{grid-template-columns:1fr 1fr;gap:6px}
+    .sale-card-dates div{padding:9px 8px}
     .sale-card-grid{gap:6px}
     .sale-card-stat{padding:10px 8px}
     .sale-card .action-row .btn{flex:1;justify-content:center;min-width:0}
@@ -312,3 +317,4 @@
 .firebase-auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 #firebase-auth-error{font-size:13px;color:var(--red-text);background:var(--red-bg);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;display:none}
 #firebase-auth-error:not(:empty){display:block}
+#firebase-user-bar{margin-left:auto}
