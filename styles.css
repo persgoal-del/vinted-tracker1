@@ -185,6 +185,8 @@
   .planning-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px;border-radius:var(--radius);background:var(--glass-soft);border:0.5px solid var(--glass-line);box-shadow:var(--glass-inset)}
   .planning-item strong{display:block;font-size:13px}
   .planning-item span{display:block;font-size:11px;color:var(--text3);margin-top:2px}
+  .planning-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+  .planning-actions .btn-icon{width:32px;height:32px;padding:0;justify-content:center}
   .planning-reorder{font-size:12px;font-weight:650;color:var(--accent-text);white-space:nowrap}
   .planning-item.warn .planning-reorder{color:var(--amber-text)}
   .planning-item.danger .planning-reorder{color:var(--red-text)}
@@ -335,6 +337,8 @@
     .btn{min-height:38px}
     .open-sale{grid-template-columns:auto 1fr auto}
     .open-sale .btn{grid-column:1/-1;justify-content:center}
+    .planning-item{align-items:flex-start;flex-direction:column}
+    .planning-actions{width:100%;justify-content:space-between}
     .segmented{width:100%;overflow-x:auto}
     .segmented button{flex:1;white-space:nowrap}
     .more-grid{grid-template-columns:1fr 1fr;gap:10px}
@@ -362,14 +366,3 @@
   @media(prefers-reduced-motion:reduce){
     *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}
   }
-
-/* Firebase Login */
-#firebase-auth-overlay{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;padding:24px;background:linear-gradient(135deg,rgba(248,247,244,.9),rgba(232,245,238,.92));backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.firebase-auth-card{width:min(430px,100%);background:var(--glass-strong,var(--bg2));border:0.5px solid var(--glass-border,var(--border));border-radius:24px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.18);display:grid;gap:12px}
-.firebase-auth-logo{width:54px;height:54px;border-radius:18px;background:#007782;color:#fff;display:grid;place-items:center;font-weight:850;margin-bottom:4px;box-shadow:0 14px 30px rgba(0,119,130,.24)}
-.firebase-auth-card h2{font-size:22px;line-height:1.15;margin:0;color:var(--text)}
-.firebase-auth-card p{font-size:13px;color:var(--text2);margin:0 0 4px}
-#firebase-auth-error{min-height:18px;color:var(--red);font-size:13px}
-.firebase-auth-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
-.firebase-user-badge{margin-left:auto}
-@media(max-width:700px){.firebase-user-badge{display:none}.firebase-auth-card{padding:22px}}

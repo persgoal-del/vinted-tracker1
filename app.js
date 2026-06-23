@@ -12,7 +12,35 @@ const PRODUCTS_CATS = {
   'Hose + Tshirt':'Hose + Tshirt Bundle',
 };
 
-function cat(name){return PRODUCTS_CATS[name]||(name||'').trim()||'Sonstiges'}
+function saleQtyFromName(name){
+  const match=String(name||'').trim().match(/^(\d+)x\s+(.+)$/i);
+  return match?Math.max(1,parseInt(match[1],10)):1;
+}
+function saleBaseName(name){
+  const match=String(name||'').trim().match(/^(\d+)x\s+(.+)$/i);
+  return cleanProductName(match?match[2]:name);
+}
+function saleDisplayName(product,qty=1){
+  const clean=cleanProductName(product);
+  return qty>1?`${qty}x ${clean}`:clean;
+}
+function saleItemsFromName(name){
+  const parts=String(name||'').split(/\s+\+\s+/).map(x=>x.trim()).filter(Boolean);
+  return (parts.length?parts:[String(name||'').trim()]).filter(Boolean).map(part=>({
+    product:saleBaseName(part),
+    qty:saleQtyFromName(part)
+  }));
+}
+function saleNameFromItems(items){
+  return items.filter(x=>x.product).map(x=>saleDisplayName(x.product,x.qty)).join(' + ');
+}
+function cat(name){
+  const items=saleItemsFromName(name);
+  return items.map(item=>{
+    const label=PRODUCTS_CATS[item.product]||item.product||'Sonstiges';
+    return item.qty>1?`${item.qty}x ${label}`:label;
+  }).join(' + ');
+}
 function cleanProductName(name){return (name||'').replace('Moanco','Monaco').trim()}
 const DEFAULT_PRODUCTS = [
   {name:'Hose',category:'Hose',cost:7,active:true},
@@ -916,9 +944,7 @@ function markPackedAsShipped(){
 function soldUnitsByType(){
   return DB.sales.reduce((map,s)=>{
     if(!isActiveSale(s))return map;
-    const type=expCatForProduct(s.art);
-    if(type)map[type]=(map[type]||0)+1;
-    if(s.art.toLowerCase().includes('hose + tshirt')){map.Hose=(map.Hose||0)+1;map.Tshirt=(map.Tshirt||0)+1}
+    unitTypesForSale(s.art).forEach(type=>{map[type]=(map[type]||0)+1});
     return map;
   },{});
 }
@@ -926,17 +952,19 @@ function soldUnitsByType(){
 function stockStats(){
   const bought=DB.expenses.filter(e=>e.kind==='rohling').reduce((map,e)=>{map[e.product]=(map[e.product]||0)+(e.qty||0);return map},{});
   const sold=soldUnitsByType();
-  const types=[...new Set([...Object.keys(bought),...Object.keys(sold),'Hose','Tshirt','Pullover','Armband'])].filter(Boolean);
-  return {bought,sold,types};
+  const manual=DB.meta?.stockAdjustments||{};
+  const types=[...new Set([...Object.keys(bought),...Object.keys(sold),...Object.keys(manual),'Hose','Tshirt','Pullover','Armband'])].filter(Boolean);
+  return {bought,sold,manual,types};
 }
 
 function renderStockOverview(){
-  const {bought,sold,types}=stockStats();
+  const {bought,sold,manual,types}=stockStats();
   const target=document.getElementById('stock-overview');
   if(!target)return;
   target.innerHTML=`<div class="stock-grid">${types.map(t=>{
-    const left=(bought[t]||0)-(sold[t]||0);
-    return `<div class="stock-item"><div class="stock-name">${t}</div><div class="stock-count" style="color:${left<0?'var(--red)':left<5?'var(--amber)':'var(--text)'}">${left}</div><div class="stock-sub">${bought[t]||0} gekauft · ${sold[t]||0} verkauft</div></div>`;
+    const left=(bought[t]||0)-(sold[t]||0)+(manual[t]||0);
+    const manualText=manual[t]?` · ${manual[t]>0?'+':''}${manual[t]} manuell`:'';
+    return `<div class="stock-item"><div class="stock-name">${t}</div><div class="stock-count" style="color:${left<0?'var(--red)':left<5?'var(--amber)':'var(--text)'}">${left}</div><div class="stock-sub">${bought[t]||0} gekauft · ${sold[t]||0} verbraucht${manualText}</div></div>`;
   }).join('')}</div>`;
 }
 
@@ -947,9 +975,7 @@ function recentSoldUnitsByType(days=30){
     if(!isActiveSale(s)||!s.date)return map;
     const d=dateObj(s.date);
     if(d<from||d>today)return map;
-    const type=expCatForProduct(s.art);
-    if(type)map[type]=(map[type]||0)+1;
-    if(s.art.toLowerCase().includes('hose + tshirt')){map.Hose=(map.Hose||0)+1;map.Tshirt=(map.Tshirt||0)+1}
+    unitTypesForSale(s.art).forEach(type=>{map[type]=(map[type]||0)+1});
     return map;
   },{});
 }
@@ -957,10 +983,10 @@ function recentSoldUnitsByType(days=30){
 function renderStockPlanning(){
   const target=document.getElementById('stock-planning');
   if(!target)return;
-  const {bought,sold,types}=stockStats();
+  const {bought,sold,manual,types}=stockStats();
   const recent=recentSoldUnitsByType(30);
   const rows=types.map(type=>{
-    const left=(bought[type]||0)-(sold[type]||0);
+    const left=(bought[type]||0)-(sold[type]||0)+(manual[type]||0);
     const velocity=(recent[type]||0)/30;
     const daysLeft=velocity>0?Math.floor(left/velocity):null;
     const targetStock=Math.max(10,Math.ceil(velocity*30));
@@ -972,10 +998,23 @@ function renderStockPlanning(){
     <div class="planning-item ${r.left<=0?'danger':r.daysLeft!==null&&r.daysLeft<=14?'warn':''}">
       <div>
         <strong>${esc(r.type)}</strong>
-        <span>${r.velocity>0?`${r.velocity.toFixed(1).replace('.',',')} Stück/Tag · reicht ca. ${Math.max(0,r.daysLeft)} Tage`:'Noch kein Verbrauch in 30 Tagen'}</span>
+        <span>${r.velocity>0?`${r.velocity.toFixed(1).replace('.',',')} Stück/Tag · reicht ca. ${Math.max(0,r.daysLeft)} Tage`:'Noch kein Verbrauch in 30 Tagen'}${manual[r.type]?` · manuell ${manual[r.type]>0?'+':''}${manual[r.type]}`:''}</span>
       </div>
-      <div class="planning-reorder">${r.reorder>0?`${r.reorder} nachbestellen`:'OK'}</div>
+      <div class="planning-actions">
+        <button class="btn btn-icon" title="Bestand um 1 verringern" onclick='adjustStock(${JSON.stringify(r.type)},-1)'><i class="ti ti-minus"></i></button>
+        <div class="planning-reorder">${r.reorder>0?`${r.reorder} nachbestellen`:'OK'}</div>
+        <button class="btn btn-icon" title="Bestand um 1 erhöhen" onclick='adjustStock(${JSON.stringify(r.type)},1)'><i class="ti ti-plus"></i></button>
+      </div>
     </div>`).join('')}</div>`;
+}
+
+function adjustStock(type,delta){
+  const before=cloneData();
+  DB.meta=DB.meta||{};
+  DB.meta.stockAdjustments=DB.meta.stockAdjustments||{};
+  DB.meta.stockAdjustments[type]=(DB.meta.stockAdjustments[type]||0)+delta;
+  if(DB.meta.stockAdjustments[type]===0)delete DB.meta.stockAdjustments[type];
+  commitChange('Bestand angepasst',()=>{renderStockOverview();renderStockPlanning();},before);
 }
 
 function getWeek(d){const jan=new Date(d.getFullYear(),0,1);const wk=Math.ceil((((d-jan)/86400000)+jan.getDay()+1)/7);return d.getFullYear()+'-W'+(wk<10?'0'+wk:wk)}
@@ -1286,6 +1325,10 @@ function duplicateSale(id){
 
 function resetSaleForm(){
   ['s-edit-id','s-date','s-shipdate','s-revenue','s-cost','s-profit','s-margin','s-note'].forEach(id=>document.getElementById(id).value='');
+  const qty=document.getElementById('s-qty');
+  if(qty)qty.value=1;
+  const extra=document.getElementById('sale-extra-items');
+  if(extra)extra.innerHTML='';
   document.getElementById('s-product').value='';
   document.getElementById('s-status').value='offen';
   document.getElementById('s-cost-hint').style.display='none';
@@ -1307,13 +1350,24 @@ function editSale(id){
   document.getElementById('s-edit-id').value=sale.id;
   document.getElementById('s-date').value=sale.date;
   document.getElementById('s-shipdate').value=sale.ship||'';
-  document.getElementById('s-product').value=sale.art;
-  if(document.getElementById('s-product').value!==sale.art){
+  const items=saleItemsFromName(sale.art);
+  if(items.some(item=>!activeProducts().some(p=>p.name===item.product))){
+    items.forEach(item=>{
+      if(activeProducts().some(p=>p.name===item.product))return;
+      const option=document.createElement('option');
+      option.value=item.product;
+      option.textContent=item.product;
+      document.getElementById('s-product').appendChild(option);
+    });
+  }
+  setSaleItems(items);
+  const selected=document.getElementById('s-product').value;
+  if(selected&&document.getElementById('s-product').value!==selected){
     const option=document.createElement('option');
-    option.value=sale.art;
-    option.textContent=sale.art;
+    option.value=selected;
+    option.textContent=selected;
     document.getElementById('s-product').appendChild(option);
-    document.getElementById('s-product').value=sale.art;
+    document.getElementById('s-product').value=selected;
   }
   document.getElementById('s-revenue').value=sale.rev;
   document.getElementById('s-cost').value=sale.cost;
@@ -1327,8 +1381,7 @@ function editSale(id){
 // Maps sale product to expense category
 function expCatForProduct(art){
   if(!art)return null;
-  const a=art.toLowerCase();
-  if(a.includes('hose + tshirt')||a.includes('bundle'))return null; // bundle: manual
+  const a=saleBaseName(art).toLowerCase();
   if(a.includes('hose'))return 'Hose';
   if(a.includes('tshirt')||a.includes('shirt'))return 'Tshirt';
   if(a.includes('pullover'))return 'Pullover';
@@ -1337,10 +1390,12 @@ function expCatForProduct(art){
 }
 
 function unitTypesForSale(art){
-  const a=(art||'').toLowerCase();
-  if(a.includes('hose + tshirt')||a.includes('bundle'))return ['Hose','Tshirt'];
-  const type=expCatForProduct(art);
-  return type?[type]:[];
+  return saleItemsFromName(art).flatMap(item=>{
+    const a=item.product.toLowerCase();
+    if(a.includes('hose + tshirt')||a.includes('bundle'))return Array.from({length:item.qty},()=>['Hose','Tshirt']).flat();
+    const type=expCatForProduct(item.product);
+    return type?Array.from({length:item.qty},()=>type):[];
+  });
 }
 
 function fifoBatchForProduct(art,excludeSaleId=null){
@@ -1372,11 +1427,21 @@ function getExpCostForProduct(art){
 }
 
 function fixedSaleCostForProduct(art){
-  const a=(art||'').toLowerCase();
+  const a=saleBaseName(art).toLowerCase();
   if(a.includes('hose + tshirt')||a.includes('bundle'))return 15.2;
   if(a.includes('hose'))return 7;
   if(a.includes('tshirt')||a.includes('shirt'))return 8.2;
   return null;
+}
+
+function fixedTotalCostForItems(items){
+  let total=0;
+  for(const item of items){
+    const unit=fixedSaleCostForProduct(item.product);
+    if(unit===null)return null;
+    total+=unit*item.qty;
+  }
+  return +total.toFixed(2);
 }
 
 function defaultCostForProduct(art){
@@ -1388,30 +1453,106 @@ function defaultCostForProduct(art){
   return product?product.cost:0;
 }
 
+function saleQtyFromForm(){
+  const el=document.getElementById('s-qty');
+  return Math.max(1,Math.floor(parseFloat(el?.value)||1));
+}
+
+function productOptionsHTML(selected=''){
+  return activeProducts().map(p=>`<option value="${esc(p.name)}" ${p.name===selected?'selected':''}>${esc(p.name)}</option>`).join('');
+}
+
+function addSaleItemRow(product='',qty=1){
+  const wrap=document.getElementById('sale-extra-items');
+  if(!wrap)return;
+  const row=document.createElement('div');
+  row.className='sale-item-row form-row';
+  row.innerHTML=`
+    <div class="form-group">
+      <label>Weiteres Produkt</label>
+      <select class="s-extra-product" onchange="onProductSelect()">
+        <option value="">Produkt wählen...</option>${productOptionsHTML(product)}
+      </select>
+    </div>
+    <div class="form-group sale-item-qty">
+      <label>Anzahl</label>
+      <div class="inline-actions">
+        <input type="number" class="s-extra-qty" min="1" step="1" value="${qty||1}" oninput="onProductSelect()">
+        <button class="btn btn-icon" type="button" onclick="removeSaleItemRow(this)"><i class="ti ti-x"></i></button>
+      </div>
+    </div>`;
+  wrap.appendChild(row);
+  onProductSelect();
+}
+
+function removeSaleItemRow(button){
+  button.closest('.sale-item-row')?.remove();
+  onProductSelect();
+}
+
+function saleItemsFromForm(){
+  const items=[];
+  const first=cleanProductName(document.getElementById('s-product').value);
+  if(first)items.push({product:first,qty:saleQtyFromForm()});
+  document.querySelectorAll('#sale-extra-items .sale-item-row').forEach(row=>{
+    const product=cleanProductName(row.querySelector('.s-extra-product')?.value||'');
+    const qty=Math.max(1,Math.floor(parseFloat(row.querySelector('.s-extra-qty')?.value)||1));
+    if(product)items.push({product,qty});
+  });
+  return items;
+}
+
+function setSaleItems(items){
+  const [first,...rest]=items.length?items:[{product:'',qty:1}];
+  document.getElementById('s-product').value=first.product||'';
+  document.getElementById('s-qty').value=first.qty||1;
+  const wrap=document.getElementById('sale-extra-items');
+  if(wrap)wrap.innerHTML='';
+  rest.forEach(item=>addSaleItemRow(item.product,item.qty));
+}
+
+function defaultTotalCostForSale(art,qty=saleQtyFromName(art)){
+  const base=saleBaseName(art);
+  const unit=defaultCostForProduct(base);
+  return +(unit*qty).toFixed(2);
+}
+
 function onProductSelect(){
-  const art=document.getElementById('s-product').value;
+  const items=saleItemsFromForm();
+  const art=saleNameFromItems(items);
   const hint=document.getElementById('s-cost-hint');
+  if(!items.length){
+    hint.style.display='none';
+    hint.innerHTML='';
+    document.getElementById('s-cost').value='';
+    calcSaleProfit();
+    return;
+  }
   const editId=parseInt(document.getElementById('s-edit-id').value,10)||null;
-  const fixed=fixedSaleCostForProduct(art);
+  const fixed=fixedTotalCostForItems(items);
   const exp=fifoBatchForProduct(art,editId)||getExpCostForProduct(art);
   const stats=priceStats(art);
   if(fixed!==null){
     document.getElementById('s-cost').value=fixed.toFixed(2);
     hint.style.display='block';
-    hint.innerHTML=`<span style="color:var(--accent-text);display:flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i> Fester Standardpreis: ${fmt(fixed)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
+    hint.innerHTML=`<span style="color:var(--accent-text);display:flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i> Rohlingkosten für ${items.reduce((a,x)=>a+x.qty,0)} Artikel = ${fmt(fixed)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
     calcSaleProfit();
   } else if(exp){
-    document.getElementById('s-cost').value=exp.unit.toFixed(2);
+    const qty=items.reduce((a,x)=>a+x.qty,0);
+    const total=+(exp.unit*qty).toFixed(2);
+    document.getElementById('s-cost').value=total.toFixed(2);
     hint.style.display='block';
-    hint.innerHTML=`<span style="color:var(--accent-text);display:flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i> FIFO-Einkauf vom ${fmtDate(exp.date)} · ${exp.remaining??exp.qty} verfügbar · €${exp.unit.toFixed(2)} · ${esc(exp.note||exp.product)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
+    hint.innerHTML=`<span style="color:var(--accent-text);display:flex;align-items:center;gap:4px"><i class="ti ti-check" style="font-size:12px" aria-hidden="true"></i> FIFO-Einkauf vom ${fmtDate(exp.date)} · ${qty} × €${exp.unit.toFixed(2)} = ${fmt(total)} · ${esc(exp.note||exp.product)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
     calcSaleProfit();
   } else {
-    const product=productByName(art);
+    const product=items.length===1?productByName(items[0].product):null;
+    const qty=items[0]?.qty||1;
     const noExp=art&&expCatForProduct(art);
     if(product&&product.cost>0){
+      const total=+(product.cost*qty).toFixed(2);
       hint.style.display='block';
-      document.getElementById('s-cost').value=product.cost.toFixed(2);
-      hint.innerHTML=`<span style="color:var(--accent-text)">Standard-Rohling aus Produktverwaltung: ${fmt(product.cost)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
+      document.getElementById('s-cost').value=total.toFixed(2);
+      hint.innerHTML=`<span style="color:var(--accent-text)">Produktverwaltung: ${qty} × ${fmt(product.cost)} = ${fmt(total)}</span>${stats?`<br><span style="color:var(--text2)">Bisher Ø ${fmt(stats.avg)} · Spanne ${fmt(stats.min)}-${fmt(stats.max)}</span>`:''}`;
     }else if(noExp){
       hint.style.display='block';
       hint.innerHTML=`<span style="color:var(--amber-text)">Noch kein Einkauf für "${esc(noExp)}" erfasst — bitte manuell eingeben.</span>`;
@@ -1438,12 +1579,13 @@ function saveSale(){
   const editId=parseInt(document.getElementById('s-edit-id').value,10);
   const date=document.getElementById('s-date').value;
   const ship=document.getElementById('s-shipdate').value;
-  const art=cleanProductName(document.getElementById('s-product').value);
+  const items=saleItemsFromForm();
+  const art=saleNameFromItems(items);
   const rev=parseFloat(document.getElementById('s-revenue').value);
   const cost=parseFloat(document.getElementById('s-cost').value);
   const note=document.getElementById('s-note').value.trim();
   let status=document.getElementById('s-status').value;
-  if(!date||!art||isNaN(rev)||isNaN(cost)){
+  if(!date||!items.length||isNaN(rev)||isNaN(cost)){
     document.getElementById('sale-alert').innerHTML='<div class="alert" style="background:var(--red-bg);color:var(--red-text)">Bitte alle Felder ausfüllen.</div>';return;
   }
   if(ship&&new Date(ship)<new Date(date)){
@@ -1454,7 +1596,7 @@ function saveSale(){
     if(ship)status='versendet';
   }
   const before=cloneData();
-  ensureProduct(art,cost);
+  items.forEach(item=>ensureProduct(item.product,item.qty?cost/items.reduce((a,x)=>a+x.qty,0):cost));
   if(editId){
     DB.sales=DB.sales.map(s=>s.id===editId?normalizeSale({id:editId,date,ship:ship||null,art,rev,cost,status,note}):s);
   }else{
@@ -1821,8 +1963,8 @@ function renderCharts(){
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}}}
     });
 
-    const {bought,sold,types}=stockStats();
-    const stockRows=types.map(t=>({type:t,left:(bought[t]||0)-(sold[t]||0)})).sort((a,b)=>a.left-b.left);
+    const {bought,sold,manual,types}=stockStats();
+    const stockRows=types.map(t=>({type:t,left:(bought[t]||0)-(sold[t]||0)+(manual[t]||0)})).sort((a,b)=>a.left-b.left);
     createChart('stockChart',{
       type:'bar',
       data:{labels:stockRows.map(x=>x.type),datasets:[{label:'Bestand',data:stockRows.map(x=>x.left),backgroundColor:stockRows.map(x=>x.left<0?'#D45353':x.left<5?'#F0B13A':'#1D9E75')}]},

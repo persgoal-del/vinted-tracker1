@@ -1,5 +1,8 @@
-// Firebase + lokale Fallback-Speicherung für den Vinted Tracker
-// Synchronisiert Verkäufe, Ausgaben, Produkte, Meta und Snapshots pro Firebase-User.
+const STORAGE_DB_NAME='vinted-tracker-db';
+const STORAGE_DB_VERSION=1;
+let storageDBPromise=null;
+let storageFallback=false;
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyBZ9Da1GiE4661W67MS-MEQ2gPNWKAk6I4",
@@ -10,24 +13,111 @@ const firebaseConfig = {
   appId: "1:684779553961:web:e4af37ed9e9cb3e9cc55b8"
 };
 
-const STORAGE_DB_NAME='vinted-tracker-db';
-const STORAGE_DB_VERSION=1;
-const FIRESTORE_COLLECTION='users';
-const FIRESTORE_DOC_COLLECTION='data';
-const FIRESTORE_DOC_ID='app';
-
-let storageDBPromise=null;
-let storageFallback=false;
+let firebaseReady=false;
 let firebaseApp=null;
 let firebaseAuth=null;
-let firebaseFirestore=null;
+let firebaseDb=null;
 let currentUser=null;
-let unsubscribeRemote=null;
-let remoteLoaded=false;
-let isApplyingRemote=false;
-let pendingSaveTimer=null;
-let pendingSaveData=null;
-let authReadyPromise=null;
+
+function initFirebase(){
+  if(firebaseReady)return true;
+  if(!window.firebase || !firebase.initializeApp)return false;
+  try{
+    firebaseApp=firebase.apps?.length?firebase.app():firebase.initializeApp(firebaseConfig);
+    firebaseAuth=firebase.auth();
+    firebaseDb=firebase.firestore();
+    firebaseReady=true;
+    return true;
+  }catch(err){
+    console.error('Firebase Initialisierung fehlgeschlagen',err);
+    return false;
+  }
+}
+
+function injectAuthStyles(){
+  if(document.getElementById('firebase-auth-styles'))return;
+  const style=document.createElement('style');
+  style.id='firebase-auth-styles';
+  style.textContent=`
+    .firebase-auth-screen{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:linear-gradient(135deg,#e8f5ee,#f8f7f4);padding:22px;color:#1a1a18;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+    .firebase-auth-card{width:min(430px,100%);background:rgba(255,255,255,.88);border:1px solid rgba(0,0,0,.08);border-radius:24px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.16)}
+    .firebase-auth-logo{width:54px;height:54px;border-radius:17px;background:#007782;color:white;display:grid;place-items:center;font-weight:850;margin-bottom:14px}
+    .firebase-auth-card h1{font-size:22px;margin:0 0 6px}.firebase-auth-card p{margin:0 0 18px;color:#6b6b67;font-size:14px}
+    .firebase-auth-card label{font-size:12px;color:#6b6b67;margin:10px 0 5px;display:block}.firebase-auth-card input{width:100%;border:1px solid rgba(0,0,0,.12);border-radius:12px;padding:12px;font-size:15px;background:#fff}
+    .firebase-auth-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}.firebase-auth-actions button{border:0;border-radius:12px;padding:11px 14px;font-size:14px;cursor:pointer}.firebase-auth-primary{background:#007782;color:white}.firebase-auth-secondary{background:#eef2f2;color:#1a1a18}.firebase-auth-error{color:#b42318;font-size:13px;margin-top:12px;min-height:18px}
+    .firebase-user-bar{position:fixed;right:14px;bottom:14px;z-index:9000;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.08);border-radius:999px;padding:8px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 10px 28px rgba(0,0,0,.12);font-size:12px;color:#555}.firebase-user-bar button{border:0;background:#eef2f2;border-radius:999px;padding:6px 9px;cursor:pointer;font-size:12px}
+  `;
+  document.head.appendChild(style);
+}
+
+function showAuthScreen(){
+  injectAuthStyles();
+  if(document.getElementById('firebase-auth-screen'))return;
+  const el=document.createElement('div');
+  el.id='firebase-auth-screen';
+  el.className='firebase-auth-screen';
+  el.innerHTML=`
+    <div class="firebase-auth-card">
+      <div class="firebase-auth-logo">PH</div>
+      <h1>Vinted Tracker</h1>
+      <p>Melde dich an, damit deine Daten auf Mac und Handy synchron bleiben.</p>
+      <label>E-Mail</label><input id="firebase-email" type="email" autocomplete="email" placeholder="deine@email.de">
+      <label>Passwort</label><input id="firebase-password" type="password" autocomplete="current-password" placeholder="mindestens 6 Zeichen">
+      <div class="firebase-auth-actions">
+        <button class="firebase-auth-primary" id="firebase-login-btn">Anmelden</button>
+        <button class="firebase-auth-secondary" id="firebase-register-btn">Konto erstellen</button>
+      </div>
+      <div id="firebase-auth-error" class="firebase-auth-error"></div>
+    </div>`;
+  document.body.appendChild(el);
+  const email=el.querySelector('#firebase-email');
+  const pass=el.querySelector('#firebase-password');
+  const error=el.querySelector('#firebase-auth-error');
+  async function run(mode){
+    error.textContent='';
+    try{
+      if(mode==='login')await firebaseAuth.signInWithEmailAndPassword(email.value.trim(),pass.value);
+      else await firebaseAuth.createUserWithEmailAndPassword(email.value.trim(),pass.value);
+    }catch(e){error.textContent=e?.message||'Anmeldung fehlgeschlagen';}
+  }
+  el.querySelector('#firebase-login-btn').onclick=()=>run('login');
+  el.querySelector('#firebase-register-btn').onclick=()=>run('register');
+  pass.addEventListener('keydown',e=>{if(e.key==='Enter')run('login')});
+}
+
+function hideAuthScreen(){document.getElementById('firebase-auth-screen')?.remove();}
+
+function showUserBar(user){
+  if(document.getElementById('firebase-user-bar'))return;
+  const bar=document.createElement('div');
+  bar.id='firebase-user-bar';
+  bar.className='firebase-user-bar';
+  bar.innerHTML=`<span>Sync aktiv</span><button title="Abmelden">Abmelden</button>`;
+  bar.querySelector('button').onclick=()=>firebaseAuth.signOut().then(()=>location.reload());
+  document.body.appendChild(bar);
+}
+
+function waitForFirebaseUser(){
+  if(!initFirebase())return Promise.resolve(null);
+  return new Promise(resolve=>{
+    const unsub=firebaseAuth.onAuthStateChanged(user=>{
+      if(user){
+        currentUser=user;
+        hideAuthScreen();
+        showUserBar(user);
+        unsub();
+        resolve(user);
+      }else{
+        showAuthScreen();
+      }
+    });
+  });
+}
+
+function userDocRef(){
+  if(!firebaseReady||!currentUser)return null;
+  return firebaseDb.collection('users').doc(currentUser.uid).collection('app').doc('data');
+}
 
 function safeJSON(value,fallback){
   try{return value?JSON.parse(value):fallback}catch{return fallback}
@@ -92,12 +182,40 @@ function loadFromLocalStorage(){
     sales:normalizedSales,
     expenses:(expenses||[]).map(normalizeExpense),
     products:buildProductsFromSales(normalizedSales,products),
-    meta:{...(meta||{}),storage:'localStorage'},
+    meta:{...(meta||{}),storage:'indexeddb'},
     snapshots:snapshots||[]
   };
 }
 
-async function loadLocalData(){
+
+async function loadData(){
+  const user=await waitForFirebaseUser();
+  if(user){
+    try{
+      const snap=await userDocRef().get();
+      if(snap.exists){
+        const stored=snap.data()||{};
+        const sales=(stored.sales||INITIAL_SALES).map(normalizeSale);
+        const expenses=(stored.expenses||[]).map(normalizeExpense);
+        const products=buildProductsFromSales(sales,stored.products);
+        const meta={...(stored.meta||{}),storage:'firebase'};
+        const snapshots=stored.snapshots||[];
+        const data={sales,expenses,products,meta,snapshots};
+        await saveLocalBackup(data);
+        return data;
+      }
+      const migrated=await loadLocalDataOnly();
+      migrated.meta={...(migrated.meta||{}),storage:'firebase',migratedAt:new Date().toISOString()};
+      await saveDataObject(migrated);
+      return migrated;
+    }catch(err){
+      console.error('Firebase Laden fehlgeschlagen, lokale Daten werden genutzt',err);
+    }
+  }
+  return loadLocalDataOnly();
+}
+
+async function loadLocalDataOnly(){
   const db=await openStorageDB();
   if(!db){
     const data=loadFromLocalStorage();
@@ -111,14 +229,14 @@ async function loadLocalData(){
     const products=buildProductsFromSales(sales,await dbGet('products'));
     const meta=(await dbGet('meta'))||{};
     const snapshots=(await dbGet('snapshots'))||[];
-    return {sales,expenses,products,meta:{...meta,storage:'indexeddb'},snapshots};
+    return {sales,expenses,products,meta:{...meta,storage:meta.storage||'indexeddb'},snapshots};
   }
   const migrated=loadFromLocalStorage();
-  await saveLocalDataObject(migrated);
+  await saveLocalBackup(migrated);
   return migrated;
 }
 
-async function saveLocalDataObject(data){
+async function saveLocalBackup(data){
   const db=await openStorageDB();
   if(!db){
     localStorage.setItem('vinted_sales',JSON.stringify(data.sales));
@@ -137,197 +255,22 @@ async function saveLocalDataObject(data){
   ]);
 }
 
-function normalizeDataObject(data){
-  const sales=Array.isArray(data?.sales)?data.sales.map(normalizeSale):INITIAL_SALES.map(normalizeSale);
-  const expenses=Array.isArray(data?.expenses)?data.expenses.map(normalizeExpense):[];
-  const products=buildProductsFromSales(sales,Array.isArray(data?.products)?data.products:null);
-  return {
-    sales,
-    expenses,
-    products,
-    meta:{...(data?.meta||{}),storage:'firebase'},
-    snapshots:Array.isArray(data?.snapshots)?data.snapshots:[]
-  };
-}
-
-function serializeDataObject(data){
-  return {
-    sales: data.sales||[],
-    expenses: data.expenses||[],
-    products: data.products||[],
-    meta: {...(data.meta||{}),storage:'firebase',updatedAt:new Date().toISOString()},
-    snapshots: data.snapshots||[]
-  };
-}
-
-function getFirebaseDocRef(){
-  if(!currentUser||!firebaseFirestore)return null;
-  return firebaseFirestore.collection(FIRESTORE_COLLECTION).doc(currentUser.uid).collection(FIRESTORE_DOC_COLLECTION).doc(FIRESTORE_DOC_ID);
-}
-
-function initFirebaseIfPossible(){
-  if(firebaseApp)return true;
-  if(!window.firebase){
-    console.warn('Firebase SDK fehlt. App nutzt lokale Speicherung.');
-    return false;
-  }
-  firebaseApp=firebase.initializeApp(firebaseConfig);
-  firebaseAuth=firebase.auth();
-  firebaseFirestore=firebase.firestore();
-  firebaseFirestore.enablePersistence({synchronizeTabs:true}).catch(()=>{});
-  return true;
-}
-
-function ensureAuthOverlay(){
-  if(document.getElementById('firebase-auth-overlay'))return;
-  const overlay=document.createElement('div');
-  overlay.id='firebase-auth-overlay';
-  overlay.innerHTML=`
-    <div class="firebase-auth-card">
-      <div class="firebase-auth-logo">PH</div>
-      <h2>Vinted Tracker anmelden</h2>
-      <p>Mit derselben E-Mail auf Mac und iPhone anmelden, dann synchronisieren sich alle Verkäufe automatisch.</p>
-      <div id="firebase-auth-error"></div>
-      <input id="firebase-email" type="email" autocomplete="email" placeholder="E-Mail">
-      <input id="firebase-password" type="password" autocomplete="current-password" placeholder="Passwort, mindestens 6 Zeichen">
-      <div class="firebase-auth-actions">
-        <button class="btn btn-primary" id="firebase-login-btn">Einloggen</button>
-        <button class="btn" id="firebase-register-btn">Konto erstellen</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  document.getElementById('firebase-login-btn').onclick=()=>firebaseLogin(false);
-  document.getElementById('firebase-register-btn').onclick=()=>firebaseLogin(true);
-  document.getElementById('firebase-password').addEventListener('keydown',e=>{if(e.key==='Enter')firebaseLogin(false)});
-}
-
-function showAuthOverlay(show=true){
-  ensureAuthOverlay();
-  document.getElementById('firebase-auth-overlay').style.display=show?'flex':'none';
-}
-
-function setAuthError(message){
-  const target=document.getElementById('firebase-auth-error');
-  if(target)target.textContent=message||'';
-}
-
-function friendlyFirebaseError(error){
-  const code=error?.code||'';
-  if(code.includes('invalid-email'))return 'Bitte eine gültige E-Mail eingeben.';
-  if(code.includes('user-not-found')||code.includes('wrong-password')||code.includes('invalid-credential'))return 'E-Mail oder Passwort stimmt nicht.';
-  if(code.includes('email-already-in-use'))return 'Diese E-Mail ist schon registriert. Bitte einloggen.';
-  if(code.includes('weak-password'))return 'Das Passwort muss mindestens 6 Zeichen haben.';
-  if(code.includes('network'))return 'Keine Verbindung. Bitte Internet prüfen.';
-  return error?.message||'Anmeldung nicht möglich.';
-}
-
-async function firebaseLogin(register){
-  setAuthError('');
-  const email=document.getElementById('firebase-email').value.trim();
-  const password=document.getElementById('firebase-password').value;
-  try{
-    if(register){
-      await firebaseAuth.createUserWithEmailAndPassword(email,password);
-    }else{
-      await firebaseAuth.signInWithEmailAndPassword(email,password);
-    }
-  }catch(error){
-    setAuthError(friendlyFirebaseError(error));
-  }
-}
-
-function installUserBadge(){
-  if(document.getElementById('firebase-user-badge'))return;
-  const bar=document.querySelector('.topbar');
-  if(!bar)return;
-  const badge=document.createElement('button');
-  badge.id='firebase-user-badge';
-  badge.className='btn firebase-user-badge';
-  badge.type='button';
-  badge.onclick=()=>firebaseAuth?.signOut();
-  badge.title='Abmelden';
-  bar.appendChild(badge);
-}
-
-function updateUserBadge(){
-  installUserBadge();
-  const badge=document.getElementById('firebase-user-badge');
-  if(badge)badge.innerHTML=`<i class="ti ti-cloud-check"></i> ${currentUser?.email||'Online'}`;
-}
-
-function refreshAfterRemote(){
-  if(typeof refreshCurrentView==='function')refreshCurrentView();
-  else if(typeof renderDashboard==='function')renderDashboard();
-  if(typeof updateMobileNavIndicator==='function')updateMobileNavIndicator();
-}
-
-async function waitForFirebaseAuth(){
-  if(!initFirebaseIfPossible())return null;
-  if(authReadyPromise)return authReadyPromise;
-  ensureAuthOverlay();
-  authReadyPromise=new Promise(resolve=>{
-    firebaseAuth.onAuthStateChanged(user=>{
-      currentUser=user;
-      if(user){
-        showAuthOverlay(false);
-        updateUserBadge();
-        resolve(user);
-      }else{
-        showAuthOverlay(true);
-      }
-    });
-  });
-  return authReadyPromise;
-}
-
-async function loadRemoteData(){
-  const ref=getFirebaseDocRef();
-  if(!ref)return null;
-  const doc=await ref.get();
-  if(!doc.exists)return null;
-  return normalizeDataObject(doc.data());
-}
-
-function subscribeRemote(){
-  if(unsubscribeRemote)unsubscribeRemote();
-  const ref=getFirebaseDocRef();
-  if(!ref)return;
-  unsubscribeRemote=ref.onSnapshot(async doc=>{
-    if(!doc.exists||!remoteLoaded)return;
-    if(doc.metadata.hasPendingWrites)return;
-    const remote=normalizeDataObject(doc.data());
-    isApplyingRemote=true;
-    window.DB=DB=remote;
-    await saveLocalDataObject(remote);
-    isApplyingRemote=false;
-    refreshAfterRemote();
-  },err=>console.error('Firebase Sync Fehler',err));
-}
-
-async function loadData(){
-  const local=await loadLocalData();
-  if(!initFirebaseIfPossible())return local;
-  await waitForFirebaseAuth();
-  const ref=getFirebaseDocRef();
-  if(!ref)return local;
-  let remote=await loadRemoteData();
-  if(!remote){
-    remote=normalizeDataObject(local);
-    await ref.set(serializeDataObject(remote),{merge:true});
-  }
-  remoteLoaded=true;
-  await saveLocalDataObject(remote);
-  subscribeRemote();
-  return remote;
-}
-
 async function saveDataObject(data){
-  const normalized=normalizeDataObject(data);
-  await saveLocalDataObject(normalized);
-  if(!initFirebaseIfPossible()||!currentUser)return;
-  const ref=getFirebaseDocRef();
-  if(ref)await ref.set(serializeDataObject(normalized),{merge:true});
+  const cleanData={
+    sales:data.sales||[],
+    expenses:data.expenses||[],
+    products:data.products||[],
+    meta:{...(data.meta||{}),storage:currentUser?'firebase':'indexeddb',updatedAt:new Date().toISOString()},
+    snapshots:data.snapshots||[]
+  };
+  await saveLocalBackup(cleanData);
+  if(currentUser&&initFirebase()){
+    await userDocRef().set(cleanData,{merge:true});
+  }
 }
+
+let pendingSaveTimer=null;
+let pendingSaveData=null;
 
 function flushPendingSave(){
   if(!pendingSaveData)return;
@@ -339,7 +282,6 @@ function flushPendingSave(){
 }
 
 function saveData(){
-  if(isApplyingRemote)return;
   pendingSaveData=JSON.parse(JSON.stringify(DB));
   clearTimeout(pendingSaveTimer);
   pendingSaveTimer=setTimeout(flushPendingSave,120);

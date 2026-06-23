@@ -13,6 +13,9 @@
 <link rel="apple-touch-icon" href="./icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -356,7 +359,8 @@
               <input type="date" id="s-shipdate" onchange="syncShipStatus()">
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:12px">
+          <div class="form-row">
+          <div class="form-group">
             <label>Produkt</label>
             <select id="s-product" onchange="onProductSelect()">
               <option value="">Produkt wählen...</option>
@@ -377,13 +381,20 @@
               <option value="Sonstiges">Sonstiges</option>
             </select>
           </div>
+            <div class="form-group">
+              <label>Anzahl</label>
+              <input type="number" id="s-qty" min="1" step="1" value="1" oninput="onProductSelect()">
+            </div>
+          </div>
+          <div id="sale-extra-items" class="sale-extra-items"></div>
+          <button class="btn" type="button" onclick="addSaleItemRow()" style="margin-bottom:12px"><i class="ti ti-plus"></i> Weiteres Produkt hinzufügen</button>
           <div class="form-row">
             <div class="form-group">
-              <label>Umsatz (€)</label>
+              <label>Gesamtpreis (€)</label>
               <input type="number" id="s-revenue" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
             </div>
             <div class="form-group">
-              <label>Stückpreis / Rohling (€)</label>
+              <label>Rohlingkosten gesamt (€)</label>
               <input type="number" id="s-cost" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
               <div id="s-cost-hint" style="font-size:11px;margin-top:4px;display:none"></div>
             </div>
@@ -545,9 +556,6 @@
 
 <button class="fab" onclick="nav('new-sale')" aria-label="Neuen Verkauf erfassen"><i class="ti ti-plus"></i></button>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script src="./storage.js"></script>
 <script src="./calculations.js"></script>
 <script src="./app.js"></script>
