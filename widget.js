@@ -1,29 +1,5 @@
-const firebaseConfig = {
-  apiKey: "AIzaSyBZ9Da1GiE4661W67MS-MEQ2gPNWKAk6I4",
-  authDomain: "vinted-tracker-2958c.firebaseapp.com",
-  projectId: "vinted-tracker-2958c",
-  storageBucket: "vinted-tracker-2958c.firebasestorage.app",
-  messagingSenderId: "684779553961",
-  appId: "1:684779553961:web:e4af37ed9e9cb3e9cc55b8"
-};
 const WIDGET_DB_NAME='vinted-tracker-db';
 const WIDGET_DB_VERSION=1;
-
-let widgetFirebaseReady=false;
-let widgetAuth=null;
-let widgetDb=null;
-
-function initWidgetFirebase(){
-  if(widgetFirebaseReady)return true;
-  if(!window.firebase || !firebase.initializeApp)return false;
-  try{
-    firebase.apps?.length?firebase.app():firebase.initializeApp(firebaseConfig);
-    widgetAuth=firebase.auth();
-    widgetDb=firebase.firestore();
-    widgetFirebaseReady=true;
-    return true;
-  }catch(e){console.error(e);return false;}
-}
 
 function widgetFmt(n){return '€'+(+n||0).toFixed(2).replace('.',',')}
 function widgetDateISO(date=new Date()){
@@ -56,21 +32,7 @@ async function widgetGet(db,key){
   });
 }
 
-function waitForWidgetUser(){
-  if(!initWidgetFirebase())return Promise.resolve(null);
-  return new Promise(resolve=>{
-    const unsub=widgetAuth.onAuthStateChanged(user=>{unsub();resolve(user||null);});
-  });
-}
-
 async function loadWidgetData(){
-  const user=await waitForWidgetUser();
-  if(user){
-    try{
-      const snap=await widgetDb.collection('users').doc(user.uid).collection('app').doc('data').get();
-      if(snap.exists)return snap.data()||{};
-    }catch(e){console.error('Widget Firebase Fehler',e)}
-  }
   const db=await openWidgetDB();
   if(db){
     const sales=await widgetGet(db,'sales');
@@ -117,6 +79,9 @@ function renderWidget(data){
     </section>`;
 }
 
-async function initWidget(){renderWidget(await loadWidgetData());}
+async function initWidget(){
+  renderWidget(await loadWidgetData());
+}
+
 initWidget();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)initWidget()});

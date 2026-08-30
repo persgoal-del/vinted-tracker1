@@ -310,16 +310,81 @@ const INITIAL_SALES = [
 
 function normalizeSale(s){
   const validStatus=['offen','versendet','storniert','retour'];
+  const validChannel=['alleine','tom_listed','tom_account'];
+  const channel=validChannel.includes(s.channel)?s.channel:'alleine';
+  const rev=+s.rev||0;
   return {
     id:+s.id||0,
     date:s.date||'',
     ship:s.ship||null,
     art:cleanProductName(s.art),
-    rev:+s.rev||0,
+    rev,
     cost:+s.cost||0,
     status:validStatus.includes(s.status)?s.status:(s.status==='offen'?'offen':'versendet'),
-    note:s.note||''
+    note:s.note||'',
+    channel,
+    commission:+s.commission||0,
+    gross:s.gross!=null&&!isNaN(+s.gross)?+s.gross:rev
   };
+}
+
+// Provision, die je nach Verkaufskanal automatisch vom Gesamtpreis abgezogen wird.
+// tom_listed: Tom hat den Artikel reingestellt -> 5€ unter 29€, 6€ ab 29€.
+// tom_account: Artikel wurde auf Toms Account verkauft -> pauschal 2,50€.
+function commissionForChannel(channel,grossAmount){
+  const g=+grossAmount||0;
+  if(channel==='tom_listed')return g>=29?6:5;
+  if(channel==='tom_account')return 2.5;
+  return 0;
+}
+
+function currentSaleChannel(){
+  const el=document.querySelector('input[name="s-channel"]:checked');
+  return el?el.value:'alleine';
+}
+
+function channelLabel(channel){
+  if(channel==='tom_listed')return 'Tom hat reingestellt';
+  if(channel==='tom_account')return 'Über Toms Account';
+  return 'Alleine verkauft';
+}
+
+// Wendet die Provisionslogik auf das Gesamtpreis-Feld an. Der zuletzt eingetippte
+// Bruttobetrag wird in #s-gross gemerkt, damit beim Wechseln des Kanals oder
+// erneutem Umschalten auf "Alleine verkauft" nicht mehrfach abgezogen wird.
+function applySaleChannel(){
+  const revInput=document.getElementById('s-revenue');
+  const grossInput=document.getElementById('s-gross');
+  const hint=document.getElementById('s-channel-hint');
+  if(!revInput||!grossInput||!hint)return;
+  const channel=currentSaleChannel();
+  let gross=parseFloat(grossInput.value);
+  if(isNaN(gross))gross=parseFloat(revInput.value)||0;
+  if(channel==='alleine'){
+    revInput.value=grossInput.value!==''?grossInput.value:revInput.value;
+    hint.style.display='none';
+    hint.innerHTML='';
+  }else{
+    const commission=commissionForChannel(channel,gross);
+    const net=Math.max(0,+(gross-commission).toFixed(2));
+    revInput.value=net.toFixed(2);
+    hint.style.display='block';
+    hint.innerHTML=`<span style="color:var(--amber-text)">Provision ${esc(channelLabel(channel))}: -${fmt(commission)} · Verkaufspreis ${fmt(gross)} → Netto ${fmt(net)}</span>`;
+  }
+  calcSaleProfit();
+}
+
+// Feuert erst, wenn das Feld verlassen wird (nicht bei jedem Tastendruck) - sonst
+// würde der automatische Abzug während des Eintippens den Wert ständig überschreiben.
+function onRevenueChange(){
+  const revInput=document.getElementById('s-revenue');
+  const grossInput=document.getElementById('s-gross');
+  if(grossInput)grossInput.value=revInput.value;
+  applySaleChannel();
+}
+
+function onChannelChange(){
+  applySaleChannel();
 }
 function normalizeExpense(e){
   const qty=+e.qty||0;
@@ -1210,6 +1275,14 @@ function renderReport(){
   const products=Object.entries(productMap).sort((a,b)=>b[1].profit-a[1].profit);
   const periodRows=reportPeriodRows(activeRows,range);
   const reportDetail=visibleRows(rows,MAX_REPORT_ROWS);
+  const commissionRows=activeRows.filter(s=>s.channel&&s.channel!=='alleine'&&s.commission>0);
+  const totalCommission=commissionRows.reduce((a,s)=>a+(+s.commission||0),0);
+  const commissionByChannel={};
+  commissionRows.forEach(s=>{
+    if(!commissionByChannel[s.channel])commissionByChannel[s.channel]={count:0,total:0};
+    commissionByChannel[s.channel].count++;
+    commissionByChannel[s.channel].total+=(+s.commission||0);
+  });
   target.innerHTML=`
     <div class="report-header">
       <div>
@@ -1245,9 +1318,19 @@ function renderReport(){
       ${products.length?reportTable(['Produkt','Verkäufe','Umsatz','Gewinn'],products.map(([name,p])=>[esc(name),p.count,fmt(p.rev),fmt(p.profit)])):'<div class="empty">Keine Verkäufe in diesem Zeitraum.</div>'}
     </div>
     <div class="report-section">
+      <h2>Provisionen</h2>
+      ${commissionRows.length?`
+        <div class="report-summary-grid">
+          <div class="summary-row"><span>Gesamt-Provision</span><strong>${fmt(totalCommission)}</strong></div>
+          <div class="summary-row"><span>Verkäufe mit Provision</span><strong>${commissionRows.length}</strong></div>
+        </div>
+        ${reportTable(['Kanal','Verkäufe','Provision gesamt'],Object.entries(commissionByChannel).map(([ch,v])=>[esc(channelLabel(ch)),v.count,fmt(v.total)]))}
+      `:'<div class="empty">Keine Provisionen in diesem Zeitraum.</div>'}
+    </div>
+    <div class="report-section">
       <h2>Verkäufe</h2>
       ${reportDetail.hidden?`<div class="alert" style="background:var(--amber-bg);color:var(--amber-text)">Der Bericht enthält sehr viele Verkäufe. Angezeigt werden die ersten ${reportDetail.rows.length}; für den kompletten Ausdruck bitte einen kleineren Zeitraum wählen.</div>`:''}
-      ${rows.length?reportTable(['#','Datum','Status','Produkt','Umsatz','Kosten','Gewinn'],reportDetail.rows.map(s=>['#'+s.id,fmtDate(s.date),statusLabel(s.status),esc(cat(s.art)),fmt(realizedRevenue(s)),fmt(realizedCost(s)),fmt(profit(s))])):'<div class="empty">Keine Einträge in diesem Zeitraum.</div>'}
+      ${rows.length?reportTable(['#','Datum','Status','Produkt','Umsatz','Kosten','Provision','Gewinn'],reportDetail.rows.map(s=>['#'+s.id,fmtDate(s.date),statusLabel(s.status),esc(cat(s.art)),fmt(realizedRevenue(s)),fmt(realizedCost(s)),s.commission?fmt(s.commission):'—',fmt(profit(s))])):'<div class="empty">Keine Einträge in diesem Zeitraum.</div>'}
     </div>
   `;
 }
@@ -1324,7 +1407,7 @@ function duplicateSale(id){
 }
 
 function resetSaleForm(){
-  ['s-edit-id','s-date','s-shipdate','s-revenue','s-cost','s-profit','s-margin','s-note'].forEach(id=>document.getElementById(id).value='');
+  ['s-edit-id','s-date','s-shipdate','s-revenue','s-cost','s-profit','s-margin','s-note','s-gross'].forEach(id=>document.getElementById(id).value='');
   const qty=document.getElementById('s-qty');
   if(qty)qty.value=1;
   const extra=document.getElementById('sale-extra-items');
@@ -1333,6 +1416,10 @@ function resetSaleForm(){
   document.getElementById('s-status').value='offen';
   document.getElementById('s-cost-hint').style.display='none';
   document.getElementById('s-cost-hint').innerHTML='';
+  const channelAlleine=document.querySelector('input[name="s-channel"][value="alleine"]');
+  if(channelAlleine)channelAlleine.checked=true;
+  const channelHint=document.getElementById('s-channel-hint');
+  if(channelHint){channelHint.style.display='none';channelHint.innerHTML='';}
   document.getElementById('sale-form-title').textContent='Neuen Verkauf erfassen';
 }
 
@@ -1370,6 +1457,17 @@ function editSale(id){
     document.getElementById('s-product').value=selected;
   }
   document.getElementById('s-revenue').value=sale.rev;
+  document.getElementById('s-gross').value=sale.gross!=null?sale.gross:sale.rev;
+  const channelInput=document.querySelector(`input[name="s-channel"][value="${sale.channel||'alleine'}"]`);
+  if(channelInput)channelInput.checked=true;
+  const channelHint=document.getElementById('s-channel-hint');
+  if(sale.channel&&sale.channel!=='alleine'&&sale.commission){
+    channelHint.style.display='block';
+    channelHint.innerHTML=`<span style="color:var(--amber-text)">Provision ${esc(channelLabel(sale.channel))}: -${fmt(sale.commission)} · Verkaufspreis ${fmt(sale.gross)} → Netto ${fmt(sale.rev)}</span>`;
+  }else{
+    channelHint.style.display='none';
+    channelHint.innerHTML='';
+  }
   document.getElementById('s-cost').value=sale.cost;
   document.getElementById('s-note').value=sale.note||'';
   document.getElementById('s-status').value=sale.status;
@@ -1585,6 +1683,10 @@ function saveSale(){
   const cost=parseFloat(document.getElementById('s-cost').value);
   const note=document.getElementById('s-note').value.trim();
   let status=document.getElementById('s-status').value;
+  const channel=currentSaleChannel();
+  const grossRaw=parseFloat(document.getElementById('s-gross').value);
+  const gross=isNaN(grossRaw)?rev:grossRaw;
+  const commission=commissionForChannel(channel,gross);
   if(!date||!items.length||isNaN(rev)||isNaN(cost)){
     document.getElementById('sale-alert').innerHTML='<div class="alert" style="background:var(--red-bg);color:var(--red-text)">Bitte alle Felder ausfüllen.</div>';return;
   }
@@ -1598,10 +1700,10 @@ function saveSale(){
   const before=cloneData();
   items.forEach(item=>ensureProduct(item.product,item.qty?cost/items.reduce((a,x)=>a+x.qty,0):cost));
   if(editId){
-    DB.sales=DB.sales.map(s=>s.id===editId?normalizeSale({id:editId,date,ship:ship||null,art,rev,cost,status,note}):s);
+    DB.sales=DB.sales.map(s=>s.id===editId?normalizeSale({id:editId,date,ship:ship||null,art,rev,cost,status,note,channel,commission,gross}):s);
   }else{
     const id=Math.max(0,...DB.sales.map(s=>s.id))+1;
-    DB.sales.push(normalizeSale({id,date,ship:ship||null,art,rev,cost,status,note}));
+    DB.sales.push(normalizeSale({id,date,ship:ship||null,art,rev,cost,status,note,channel,commission,gross}));
   }
   renumberSales();
   commitChange(editId?'Verkauf geändert':'Verkauf gespeichert',()=>{},before);

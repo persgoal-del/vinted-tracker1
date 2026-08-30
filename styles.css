@@ -142,6 +142,15 @@
   .open-sale-product{font-size:13px;font-weight:500;color:var(--text)}
   .open-sale-meta{font-size:11px;color:var(--text2)}
   .open-sale-amount{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap}
+  .channel-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .channel-option{position:relative;display:flex;flex-direction:column;gap:2px;border:0.5px solid var(--glass-border);background:var(--glass-strong);border-radius:var(--radius);padding:10px 12px;cursor:pointer;box-shadow:var(--glass-inset);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .15s ease,border-color .15s ease}
+  .channel-option input{position:absolute;opacity:0;pointer-events:none}
+  .channel-option-title{font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px}
+  .channel-option-sub{font-size:11px;color:var(--text2)}
+  .channel-option:hover{background:rgba(255,255,255,0.74)}
+  .channel-option:has(input:checked){border-color:var(--accent-text);background:rgba(93,202,165,0.16)}
+  .channel-option:has(input:checked) .channel-option-title{color:var(--accent-text)}
+  @media (max-width:600px){.channel-picker{grid-template-columns:1fr}}
   .segmented{display:inline-flex;background:var(--glass-soft);border:0.5px solid var(--glass-border);border-radius:var(--radius);padding:2px;gap:2px;box-shadow:var(--glass-inset);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
   .segmented button{border:none;background:transparent;color:var(--text2);font:inherit;font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer}
   .segmented button.active{background:var(--glass-strong);color:var(--accent-text);box-shadow:0 1px 2px rgba(0,0,0,0.08),var(--glass-inset)}
