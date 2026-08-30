@@ -1006,6 +1006,19 @@ function markPackedAsShipped(){
   commitChange('Gepackte Verkäufe versendet',refreshCurrentView,before);
 }
 
+function markAllOpenAsShipped(){
+  const rows=DB.sales.filter(s=>s.status==='offen');
+  if(!rows.length){appToast('Keine offenen Verkäufe vorhanden','ti-info-circle');return}
+  if(!confirm(`Wirklich alle ${rows.length} offenen Verkäufe als versendet markieren?`))return;
+  const before=cloneData();
+  const today=localDateISO();
+  const openIds=new Set(rows.map(s=>s.id));
+  rows.forEach(s=>{s.ship=s.ship||today;s.status='versendet'});
+  DB.meta=DB.meta||{};
+  DB.meta.packedIds=(DB.meta.packedIds||[]).filter(id=>!openIds.has(id));
+  commitChange('Alle offenen Verkäufe versendet',refreshCurrentView,before);
+}
+
 function soldUnitsByType(){
   return DB.sales.reduce((map,s)=>{
     if(!isActiveSale(s))return map;

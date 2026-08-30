@@ -1,5 +1,5 @@
 const WIDGET_DB_NAME='vinted-tracker-db';
-const WIDGET_DB_VERSION=1;
+const WIDGET_DB_VERSION=2;
 
 function widgetFmt(n){return '€'+(+n||0).toFixed(2).replace('.',',')}
 function widgetDateISO(date=new Date()){
@@ -16,9 +16,16 @@ function openWidgetDB(){
   if(!('indexedDB' in window))return Promise.resolve(null);
   return new Promise(resolve=>{
     const req=indexedDB.open(WIDGET_DB_NAME,WIDGET_DB_VERSION);
+    // Wichtig: Falls das Widget die Datenbank als allererstes anlegt (z.B. Home-Bildschirm-Widget
+    // genutzt bevor die App je geöffnet wurde), MUSS hier ebenfalls der "kv"-Store erstellt werden.
+    // Sonst entsteht eine leere Datenbank ohne Store, und die Haupt-App kann danach nie mehr
+    // etwas speichern (gleiche Version = kein onupgradeneeded mehr -> Speichern schlägt still fehl).
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains('kv'))db.createObjectStore('kv',{keyPath:'key'});
+    };
     req.onsuccess=()=>resolve(req.result);
     req.onerror=()=>resolve(null);
-    req.onupgradeneeded=()=>resolve(null);
   });
 }
 
