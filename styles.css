@@ -142,7 +142,7 @@
   .open-sale-product{font-size:13px;font-weight:500;color:var(--text)}
   .open-sale-meta{font-size:11px;color:var(--text2)}
   .open-sale-amount{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap}
-  .channel-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .channel-picker{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   .channel-option{position:relative;display:flex;flex-direction:column;gap:2px;border:0.5px solid var(--glass-border);background:var(--glass-strong);border-radius:var(--radius);padding:10px 12px;cursor:pointer;box-shadow:var(--glass-inset);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .15s ease,border-color .15s ease}
   .channel-option input{position:absolute;opacity:0;pointer-events:none}
   .channel-option-title{font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px}

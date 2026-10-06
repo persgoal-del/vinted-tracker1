@@ -310,7 +310,7 @@ const INITIAL_SALES = [
 
 function normalizeSale(s){
   const validStatus=['offen','versendet','storniert','retour'];
-  const validChannel=['alleine','tom_listed','tom_account'];
+  const validChannel=['alleine','tom_listed','tom_account','tom_printed'];
   const channel=validChannel.includes(s.channel)?s.channel:'alleine';
   const rev=+s.rev||0;
   return {
@@ -331,10 +331,12 @@ function normalizeSale(s){
 // Provision, die je nach Verkaufskanal automatisch vom Gesamtpreis abgezogen wird.
 // tom_listed: Tom hat den Artikel reingestellt -> 5€ unter 29€, 6€ ab 29€.
 // tom_account: Artikel wurde auf Toms Account verkauft -> pauschal 2,50€.
+// tom_printed: Tom hat gedruckt -> pauschal 4,50€.
 function commissionForChannel(channel,grossAmount){
   const g=+grossAmount||0;
   if(channel==='tom_listed')return g>=29?6:5;
   if(channel==='tom_account')return 2.5;
+  if(channel==='tom_printed')return 4.5;
   return 0;
 }
 
@@ -346,6 +348,7 @@ function currentSaleChannel(){
 function channelLabel(channel){
   if(channel==='tom_listed')return 'Tom hat reingestellt';
   if(channel==='tom_account')return 'Über Toms Account';
+  if(channel==='tom_printed')return 'Tom hat gedruckt';
   return 'Alleine verkauft';
 }
 
