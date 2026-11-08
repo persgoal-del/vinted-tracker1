@@ -1,5 +1,5 @@
 const STORAGE_DB_NAME='vinted-tracker-db';
-const STORAGE_DB_VERSION=1;
+const STORAGE_DB_VERSION=2;
 let storageDBPromise=null;
 let storageFallback=false;
 
@@ -26,10 +26,15 @@ async function dbGet(key){
   const db=await openStorageDB();
   if(!db)return undefined;
   return new Promise(resolve=>{
-    const tx=db.transaction('kv','readonly');
-    const req=tx.objectStore('kv').get(key);
-    req.onsuccess=()=>resolve(req.result?.value);
-    req.onerror=()=>resolve(undefined);
+    try{
+      const tx=db.transaction('kv','readonly');
+      const req=tx.objectStore('kv').get(key);
+      req.onsuccess=()=>resolve(req.result?.value);
+      req.onerror=()=>resolve(undefined);
+    }catch(err){
+      notifyStorageError(err);
+      resolve(undefined);
+    }
   });
 }
 
@@ -37,11 +42,25 @@ async function dbSet(key,value){
   const db=await openStorageDB();
   if(!db)return false;
   return new Promise(resolve=>{
-    const tx=db.transaction('kv','readwrite');
-    tx.objectStore('kv').put({key,value});
-    tx.oncomplete=()=>resolve(true);
-    tx.onerror=()=>resolve(false);
+    try{
+      const tx=db.transaction('kv','readwrite');
+      tx.objectStore('kv').put({key,value});
+      tx.oncomplete=()=>resolve(true);
+      tx.onerror=()=>{notifyStorageError(tx.error);resolve(false)};
+    }catch(err){
+      notifyStorageError(err);
+      resolve(false);
+    }
   });
+}
+
+// Wird aufgerufen, wenn ein Speichervorgang fehlschlägt, damit das (früher stille)
+// Scheitern jetzt sichtbar gemeldet wird, statt Daten unbemerkt zu verlieren.
+function notifyStorageError(err){
+  console.error('Speichern fehlgeschlagen',err);
+  if(typeof window!=='undefined'&&typeof window.appToast==='function'){
+    window.appToast('Speichern fehlgeschlagen — bitte Seite neu laden','ti-alert-triangle');
+  }
 }
 
 function buildProductsFromSales(sales,existingProducts){
@@ -120,7 +139,7 @@ function flushPendingSave(){
   pendingSaveData=null;
   clearTimeout(pendingSaveTimer);
   pendingSaveTimer=null;
-  saveDataObject(data).catch(err=>console.error('Speichern fehlgeschlagen',err));
+  saveDataObject(data).catch(err=>notifyStorageError(err));
 }
 
 function saveData(){
