@@ -24,31 +24,32 @@
   </div>
 </div>
 <div class="app">
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="Hauptnavigation">
     <div class="sidebar-logo">
       <div class="brand-row"><span class="brand-mark">PH</span><h1>Vinted Tracker</h1></div>
       <p>Per Hellberg · 2026</p>
     </div>
     <div class="section-label">Übersicht</div>
-    <div class="nav-item active" onclick="nav('dashboard')"><i class="ti ti-layout-dashboard"></i> Dashboard</div>
-    <div class="nav-item nav-extra" onclick="nav('charts')"><i class="ti ti-chart-bar"></i> Diagramme</div>
-    <div class="nav-item nav-extra" onclick="nav('reports')"><i class="ti ti-file-analytics"></i> Berichte</div>
+    <button type="button" class="nav-item active" onclick="nav('dashboard')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3z M14 3h7v11h-7z M3 14h7v7H3z M14 18h7v3h-7z"/></svg> Dashboard</button>
+    <button type="button" class="nav-item nav-extra" onclick="nav('charts')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10h4v10 M10 20V4h4v16 M16 20v-7h4v7"/></svg> Diagramme</button>
+    <button type="button" class="nav-item nav-extra" onclick="nav('reports')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H5v20h14V7z M14 2v6h5 M8 17v-3 M12 17v-6 M16 17v-4"/></svg> Berichte</button>
     <div class="section-label">Verkäufe</div>
-    <div class="nav-item" onclick="nav('sales')"><i class="ti ti-package"></i> Alle Verkäufe</div>
-    <div class="nav-item" onclick="nav('new-sale')"><i class="ti ti-plus"></i> Neuer Verkauf</div>
-    <div class="nav-item" onclick="nav('returns')"><i class="ti ti-receipt-refund"></i> Retoure</div>
-    <div class="nav-item nav-extra" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i> Packliste</div>
+    <button type="button" class="nav-item" onclick="nav('sales')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 7 9-5 9 5v10l-9 5-9-5z M3 7l9 5 9-5 M12 12v10 M7 4l10 6"/></svg> Alle Verkäufe</button>
+    <button type="button" class="nav-item" onclick="nav('new-sale')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg> Neuer Verkauf</button>
+    <button type="button" class="nav-item" onclick="nav('returns')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7H4v-4 M4 7a8 8 0 1 1-1 8"/></svg> Retoure</button>
+    <button type="button" class="nav-item nav-extra" onclick="nav('packlist')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H5v18h14V4h-3 M8 2h8v5H8z M8 12h8 M8 17h6"/></svg> Packliste</button>
     <div class="section-label">Kosten</div>
-    <div class="nav-item nav-extra" onclick="nav('expenses')"><i class="ti ti-receipt"></i> Rohlingskosten</div>
-    <div class="nav-item nav-extra" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i> Neue Ausgabe</div>
+    <button type="button" class="nav-item nav-extra" onclick="nav('expenses')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2l3 2 4-2 4 2 3-2v20l-3-2-4 2-4-2-3 2z M8 9h8 M8 14h6"/></svg> Rohlingskosten</button>
+    <button type="button" class="nav-item nav-extra" onclick="nav('new-expense')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h3l3 13h11l3-10H6 M9 21h.01 M18 21h.01"/></svg> Neue Ausgabe</button>
     <div class="section-label">Stammdaten</div>
-    <div class="nav-item nav-extra" onclick="nav('products')"><i class="ti ti-tags"></i> Produkte</div>
-    <div class="nav-item nav-more" onclick="nav('more')"><i class="ti ti-dots"></i> Mehr</div>
+    <button type="button" class="nav-item nav-extra" onclick="nav('products')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h9l9 9-9 9-9-9z M7 7h.01"/></svg> Produkte</button>
+    <button type="button" class="nav-item nav-more" onclick="nav('more')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h.01 M12 12h.01 M19 12h.01"/></svg> Mehr</button>
   </aside>
 
   <div class="main">
     <div class="topbar">
       <h2 id="page-title">Dashboard</h2>
+      <button class="btn btn-primary" onclick="nav('new-sale')"><i class="ti ti-plus" aria-hidden="true"></i> Verkauf erfassen</button>
     </div>
 
     <div class="content">
@@ -77,19 +78,19 @@
           <div id="quick-alert"></div>
           <div class="form-row">
             <div class="form-group">
-              <label>Produkt</label>
+              <label for="q-product">Produkt</label>
               <select id="q-product" onchange="onQuickProductSelect()"></select>
             </div>
             <div class="form-group">
-              <label>Umsatz (€)</label>
+              <label for="q-revenue">Umsatz (€)</label>
               <input type="number" id="q-revenue" step="0.01" placeholder="0.00" oninput="calcQuickProfit()">
               <div id="q-price-hint" class="price-hint"></div>
             </div>
           </div>
           <div class="inline-actions">
-            <input type="number" id="q-cost" step="0.01" placeholder="Rohling" style="max-width:130px" oninput="calcQuickProfit()">
+            <input type="number" aria-label="Rohlingskosten in Euro" id="q-cost" step="0.01" placeholder="Rohling" style="max-width:130px" oninput="calcQuickProfit()">
             <span class="muted" id="q-profit">Gewinn —</span>
-            <button class="btn btn-primary" onclick="quickAddSale()"><i class="ti ti-plus"></i> Offen speichern</button>
+            <button class="btn btn-primary" onclick="quickAddSale()"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg> Offen speichern</button>
           </div>
         </div>
         <div class="two-col" id="dash-month-row">
@@ -139,19 +140,19 @@
           <div id="cancel-alert"></div>
           <div class="form-row">
             <div class="form-group">
-              <label>Produkt</label>
+              <label for="c-product">Produkt</label>
               <select id="c-product" onchange="suggestCancelMatches()"></select>
             </div>
             <div class="form-group">
-              <label>Storno-Betrag (€)</label>
+              <label for="c-revenue">Storno-Betrag (€)</label>
               <input type="number" id="c-revenue" step="0.01" placeholder="0.00" oninput="suggestCancelMatches()">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label>Kaufdatum optional</label>
+            <label for="c-date">Kaufdatum optional</label>
             <input type="date" id="c-date" onchange="suggestCancelMatches()">
           </div>
-          <button class="btn btn-danger" onclick="cancelMatchingSale()"><i class="ti ti-receipt-refund"></i> Passenden Verkauf stornieren</button>
+          <button class="btn btn-danger" onclick="cancelMatchingSale()"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7H4v-4 M4 7a8 8 0 1 1-1 8"/></svg> Passenden Verkauf stornieren</button>
           <div id="cancel-suggestions"></div>
         </div>
       </div>
@@ -182,11 +183,11 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Monats-Umsatzziel (€)</label>
+              <label for="goal-revenue">Monats-Umsatzziel (€)</label>
               <input type="number" id="goal-revenue" step="1" placeholder="0" oninput="saveGoals()">
             </div>
             <div class="form-group">
-              <label>Monats-Gewinnziel (€)</label>
+              <label for="goal-profit">Monats-Gewinnziel (€)</label>
               <input type="number" id="goal-profit" step="1" placeholder="0" oninput="saveGoals()">
             </div>
           </div>
@@ -200,12 +201,12 @@
       <!-- MEHR -->
       <div id="page-more" class="page">
         <div class="more-grid">
-          <button class="more-tile" onclick="nav('charts')"><i class="ti ti-chart-bar"></i><span>Diagramme</span></button>
-          <button class="more-tile" onclick="nav('reports')"><i class="ti ti-file-analytics"></i><span>Berichte</span></button>
-          <button class="more-tile" onclick="nav('packlist')"><i class="ti ti-clipboard-list"></i><span>Packliste</span></button>
-          <button class="more-tile" onclick="nav('expenses')"><i class="ti ti-receipt"></i><span>Rohlingskosten</span></button>
-          <button class="more-tile" onclick="nav('new-expense')"><i class="ti ti-shopping-cart"></i><span>Neue Ausgabe</span></button>
-          <button class="more-tile" onclick="nav('products')"><i class="ti ti-tags"></i><span>Produkte</span></button>
+          <button class="more-tile" onclick="nav('charts')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10h4v10 M10 20V4h4v16 M16 20v-7h4v7"/></svg><span>Diagramme</span></button>
+          <button class="more-tile" onclick="nav('reports')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H5v20h14V7z M14 2v6h5 M8 17v-3 M12 17v-6 M16 17v-4"/></svg><span>Berichte</span></button>
+          <button class="more-tile" onclick="nav('packlist')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H5v18h14V4h-3 M8 2h8v5H8z M8 12h8 M8 17h6"/></svg><span>Packliste</span></button>
+          <button class="more-tile" onclick="nav('expenses')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2l3 2 4-2 4 2 3-2v20l-3-2-4 2-4-2-3 2z M8 9h8 M8 14h6"/></svg><span>Rohlingskosten</span></button>
+          <button class="more-tile" onclick="nav('new-expense')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h3l3 13h11l3-10H6 M9 21h.01 M18 21h.01"/></svg><span>Neue Ausgabe</span></button>
+          <button class="more-tile" onclick="nav('products')"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h9l9 9-9 9-9-9z M7 7h.01"/></svg><span>Produkte</span></button>
           <button class="more-tile" onclick="nav('goals')"><i class="ti ti-adjustments"></i><span>Ziele</span></button>
           <button class="more-tile" onclick="window.open('./widget.html','_blank')"><i class="ti ti-layout-grid"></i><span>Dashboard Widget</span></button>
         </div>
@@ -217,7 +218,7 @@
           <div class="card-title">Bericht erstellen</div>
           <div class="form-row report-range-grid">
             <div class="form-group">
-              <label>Zeitraum</label>
+              <label for="report-period">Zeitraum</label>
               <select id="report-period" onchange="updateReportControls()">
                 <option value="week">Woche</option>
                 <option value="month">Monat</option>
@@ -226,19 +227,19 @@
               </select>
             </div>
             <div class="form-group report-field report-week-field">
-              <label>Tag in der Woche</label>
+              <label for="report-week-date">Tag in der Woche</label>
               <input type="date" id="report-week-date" onchange="renderReport()">
             </div>
             <div class="form-group report-field report-month-field" style="display:none">
-              <label>Monat</label>
+              <label for="report-month">Monat</label>
               <input type="month" id="report-month" onchange="renderReport()">
             </div>
             <div class="form-group report-field report-custom-field" style="display:none">
-              <label>Von</label>
+              <label for="report-from">Von</label>
               <input type="date" id="report-from" onchange="renderReport()">
             </div>
             <div class="form-group report-field report-custom-field" style="display:none">
-              <label>Bis</label>
+              <label for="report-to">Bis</label>
               <input type="date" id="report-to" onchange="renderReport()">
             </div>
           </div>
@@ -348,17 +349,17 @@
           <input type="hidden" id="s-edit-id">
           <div class="form-row">
             <div class="form-group">
-              <label>Datum</label>
+              <label for="s-date">Datum</label>
               <input type="date" id="s-date">
             </div>
             <div class="form-group">
-              <label>Ausführdatum (optional)</label>
+              <label for="s-shipdate">Ausführdatum (optional)</label>
               <input type="date" id="s-shipdate" onchange="syncShipStatus()">
             </div>
           </div>
           <div class="form-row">
           <div class="form-group">
-            <label>Produkt</label>
+            <label for="s-product">Produkt</label>
             <select id="s-product" onchange="onProductSelect()">
               <option value="">Produkt wählen...</option>
               <option value="Hose">Hose</option>
@@ -379,62 +380,35 @@
             </select>
           </div>
             <div class="form-group">
-              <label>Anzahl</label>
+              <label for="s-qty">Anzahl</label>
               <input type="number" id="s-qty" min="1" step="1" value="1" oninput="onProductSelect()">
             </div>
           </div>
           <div id="sale-extra-items" class="sale-extra-items"></div>
-          <button class="btn" type="button" onclick="addSaleItemRow()" style="margin-bottom:12px"><i class="ti ti-plus"></i> Weiteres Produkt hinzufügen</button>
-          <div class="form-group" style="margin-bottom:1rem">
-            <label>Verkaufskanal</label>
-            <div class="channel-picker">
-              <label class="channel-option">
-                <input type="radio" name="s-channel" value="alleine" checked onchange="onChannelChange()">
-                <span class="channel-option-title"><i class="ti ti-user"></i> Alleine verkauft</span>
-                <span class="channel-option-sub">Kein Abzug</span>
-              </label>
-              <label class="channel-option">
-                <input type="radio" name="s-channel" value="tom_listed" onchange="onChannelChange()">
-                <span class="channel-option-title"><i class="ti ti-tag"></i> Tom hat reingestellt</span>
-                <span class="channel-option-sub">5€ / 6€ Provision</span>
-              </label>
-              <label class="channel-option">
-                <input type="radio" name="s-channel" value="tom_account" onchange="onChannelChange()">
-                <span class="channel-option-title"><i class="ti ti-user-share"></i> Über Toms Account</span>
-                <span class="channel-option-sub">2,50€ Provision</span>
-              </label>
-              <label class="channel-option">
-                <input type="radio" name="s-channel" value="tom_printed" onchange="onChannelChange()">
-                <span class="channel-option-title"><i class="ti ti-printer"></i> Tom hat gedruckt</span>
-                <span class="channel-option-sub">4,50€ Provision</span>
-              </label>
-            </div>
-            <div id="s-channel-hint" style="font-size:11px;margin-top:6px;display:none"></div>
-            <input type="hidden" id="s-gross">
-          </div>
+          <button class="btn" type="button" onclick="addSaleItemRow()" style="margin-bottom:12px"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg> Weiteres Produkt hinzufügen</button>
           <div class="form-row">
             <div class="form-group">
-              <label>Gesamtpreis (€)</label>
-              <input type="number" id="s-revenue" step="0.01" placeholder="0.00" oninput="calcSaleProfit()" onchange="onRevenueChange()">
+              <label for="s-revenue">Gesamtpreis (€)</label>
+              <input type="number" id="s-revenue" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
             </div>
             <div class="form-group">
-              <label>Rohlingkosten gesamt (€)</label>
+              <label for="s-cost">Rohlingkosten gesamt (€)</label>
               <input type="number" id="s-cost" step="0.01" placeholder="0.00" oninput="calcSaleProfit()">
               <div id="s-cost-hint" style="font-size:11px;margin-top:4px;display:none"></div>
             </div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Gewinn (€)</label>
+              <label for="s-profit">Gewinn (€)</label>
               <input type="number" id="s-profit" step="0.01" placeholder="—" readonly style="opacity:0.6">
             </div>
             <div class="form-group">
-              <label>Marge (%)</label>
+              <label for="s-margin">Marge (%)</label>
               <input type="number" id="s-margin" step="0.01" placeholder="—" readonly style="opacity:0.6">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label>Status</label>
+            <label for="s-status">Status</label>
             <select id="s-status">
               <option value="offen">Offen</option>
               <option value="versendet">Versendet</option>
@@ -443,7 +417,7 @@
             </select>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label>Notiz</label>
+            <label for="s-note">Notiz</label>
             <input type="text" id="s-note" placeholder="z.B. Käufer, Größe, Farbe, Bestellnummer">
           </div>
           <div style="display:flex;gap:8px">
@@ -461,7 +435,6 @@
             <button class="btn" onclick="window.print()"><i class="ti ti-printer"></i> Drucken</button>
             <button class="btn btn-primary" onclick="markPackedAsShipped()"><i class="ti ti-package-export"></i> Gepackte versenden</button>
             <button class="btn" onclick="clearPacklistChecks()"><i class="ti ti-eraser"></i> Haken leeren</button>
-            <button class="btn" onclick="markAllOpenAsShipped()"><i class="ti ti-checks"></i> Alle offenen als versendet markieren</button>
           </div>
           <div id="packlist"></div>
         </div>
@@ -482,12 +455,12 @@
             <div class="card-title">Produkt hinzufügen</div>
             <div id="product-alert"></div>
             <div class="form-group" style="margin-bottom:12px">
-              <label>Name</label>
+              <label for="p-name">Name</label>
               <input type="text" id="p-name" placeholder="z.B. Tshirt Monaco Weiß">
             </div>
             <div class="form-row">
               <div class="form-group">
-                <label>Kategorie</label>
+                <label for="p-category">Kategorie</label>
                 <select id="p-category">
                   <option value="Hose">Hose</option>
                   <option value="Tshirt">Tshirt</option>
@@ -497,11 +470,11 @@
                 </select>
               </div>
               <div class="form-group">
-                <label>Standard-Rohling (€)</label>
+                <label for="p-cost">Standard-Rohling (€)</label>
                 <input type="number" id="p-cost" step="0.01" placeholder="0.00">
               </div>
             </div>
-            <button class="btn btn-primary" onclick="addProduct()"><i class="ti ti-plus"></i> Produkt speichern</button>
+            <button class="btn btn-primary" onclick="addProduct()"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg> Produkt speichern</button>
           </div>
           <div class="card">
             <div class="card-title">Produktliste</div>
@@ -518,16 +491,16 @@
           <input type="hidden" id="e-edit-id">
           <div class="form-row">
             <div class="form-group">
-              <label>Datum</label>
+              <label for="e-date">Datum</label>
               <input type="date" id="e-date">
             </div>
             <div class="form-group">
-              <label>Anzahl</label>
+              <label for="e-qty">Anzahl</label>
               <input type="number" id="e-qty" min="1" placeholder="z.B. 50" oninput="calcExpTotal()">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:12px">
-            <label>Produkt / Typ</label>
+            <label for="e-product">Produkt / Typ</label>
             <select id="e-product" onchange="syncExpenseKind()">
               <option value="">Typ wählen...</option>
               <option value="Hose">Hose</option>
@@ -540,7 +513,7 @@
             </select>
           </div>
           <div class="form-group" style="margin-bottom:12px">
-            <label>Kostenart</label>
+            <label for="e-kind">Kostenart</label>
             <select id="e-kind">
               <option value="rohling">Rohlinge / Bestand</option>
               <option value="dtf">DTF Druck</option>
@@ -550,16 +523,16 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label>Preis pro Stück (€)</label>
+              <label for="e-unit">Preis pro Stück (€)</label>
               <input type="number" id="e-unit" step="0.01" placeholder="0.00" oninput="calcExpenseFromUnit()">
             </div>
             <div class="form-group">
-              <label>Gesamt (€)</label>
+              <label for="e-total">Gesamt (€)</label>
               <input type="number" id="e-total" step="0.01" placeholder="0.00" oninput="calcExpenseFromTotal()">
             </div>
           </div>
           <div class="form-group" style="margin-bottom:1rem">
-            <label>Notiz</label>
+            <label for="e-note">Notiz</label>
             <input type="text" id="e-note" placeholder="z.B. Lieferant, Bestellnummer...">
           </div>
           <div style="display:flex;gap:8px">
@@ -579,7 +552,7 @@
   <button class="close-btn" onclick="hideUndoBar()">×</button>
 </div>
 
-<button class="fab" onclick="nav('new-sale')" aria-label="Neuen Verkauf erfassen"><i class="ti ti-plus"></i></button>
+<button class="fab" onclick="nav('new-sale')" aria-label="Neuen Verkauf erfassen"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14 M5 12h14"/></svg></button>
 
 <script src="./storage.js"></script>
 <script src="./calculations.js"></script>
