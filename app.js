@@ -647,9 +647,9 @@ function nav(page){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active')});
-  const morePages=['charts','reports','packlist','expenses','new-expense','products','goals'];
+  const morePages=['charts','reports','packlist','expenses','new-expense','products','goals','backup'];
   if(morePages.includes(page))document.querySelector('.nav-more')?.classList.add('active');
-  const titles={'dashboard':'Dashboard','charts':'Diagramme','reports':'Berichte','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte'};
+  const titles={'dashboard':'Dashboard','charts':'Diagramme','reports':'Berichte','sales':'Alle Verkäufe','new-sale':'Neuer Verkauf','returns':'Retoure','goals':'Ziele','more':'Mehr','packlist':'Packliste','expenses':'Rohlingskosten','new-expense':'Neue Ausgabe','products':'Produkte','backup':'Datensicherung'};
   document.getElementById('page-title').textContent=titles[page]||page;
   if(page==='dashboard')safeRender('Dashboard',renderDashboard);
   if(page==='charts')safeRender('Diagramme',renderCharts);
@@ -663,6 +663,7 @@ function nav(page){
   if(page==='products')safeRender('Produkte',renderProducts);
   if(page==='new-sale')safeRender('Neuer Verkauf',()=>{resetSaleForm();populateProductSelects();setTodayDate('s-date');document.getElementById('sale-alert').innerHTML=''});
   if(page==='new-expense')safeRender('Neue Ausgabe',()=>{resetExpenseForm();setTodayDate('e-date');document.getElementById('exp-alert').innerHTML=''});
+  if(page==='backup')safeRender('Datensicherung',()=>{});
   animatePage(page);
   updateMobileNavIndicator();
 }

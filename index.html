@@ -208,7 +208,17 @@
           <button class="more-tile" onclick="nav('products')"><i class="ti ti-tags"></i><span>Produkte</span></button>
           <button class="more-tile" onclick="nav('goals')"><i class="ti ti-adjustments"></i><span>Ziele</span></button>
           <button class="more-tile" onclick="window.open('./widget.html','_blank')"><i class="ti ti-layout-grid"></i><span>Dashboard Widget</span></button>
+          <button class="more-tile" onclick="nav('backup')"><i class="ti ti-database-export"></i><span>Datensicherung</span></button>
         </div>
+      </div>
+
+      <div id="page-backup" class="page">
+        <div class="rhythm-heading"><div><h3>Datensicherung</h3><p class="muted">Speichere deine Verkäufe als Datei oder stelle ein vorhandenes Backup wieder her.</p></div></div>
+        <div class="two-col">
+          <div class="card"><div class="card-title">Backup herunterladen</div><p class="rhythm-note">Enthält Verkäufe, Ausgaben, Produkte, Ziele und interne Sicherungspunkte. Die Datei bleibt auf deinem Gerät.</p><button class="btn btn-primary" onclick="exportVintedBackup()"><i class="ti ti-download" aria-hidden="true"></i> Backup herunterladen</button></div>
+          <div class="card"><div class="card-title">Backup wiederherstellen</div><p class="rhythm-note">Wähle eine zuvor gespeicherte JSON-Datei. Vor dem Überschreiben wird automatisch ein Sicherungspunkt angelegt.</p><input id="backup-file" type="file" accept="application/json,.json" hidden onchange="importVintedBackup(this.files[0]);this.value=''"/><button class="btn" onclick="chooseVintedBackup()"><i class="ti ti-upload" aria-hidden="true"></i> Backup auswählen</button></div>
+        </div>
+        <div class="card"><div class="card-title">So verwendest du es</div><ol class="backup-steps"><li>Backup herunterladen und an einem sicheren Ort speichern.</li><li>Nach einem Gerätewechsel dieselbe Datei auswählen.</li><li>Die App prüft die Datei und fragt vor der Wiederherstellung nach.</li></ol></div>
       </div>
 
       <!-- BERICHTE -->
@@ -615,6 +625,7 @@
 <script src="./calculations.js"></script>
 <script src="./insights.js?v=monthly-1"></script>
 <script src="./forecast-calendar.js?v=monthly-2"></script>
+<script src="./backup.js?v=backup-1"></script>
 <script src="./app.js?v=monthly-1"></script>
 </body>
 </html>
