@@ -2028,16 +2028,17 @@ function deleteExp(id){
   commitChange('Ausgabe gelöscht',renderExpenses,before);
 }
 
-let currentChartTab='monthly';
+let currentChartTab='timing';
 function switchChartTab(t){
   currentChartTab=t;
-  const tabs=['monthly','product','margin','status','patterns'];
-  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',tabs[i]===t)});
+  const tabs=['timing','monthly','product','margin','status','patterns'];
+  document.querySelectorAll('#page-charts .tab').forEach((el,i)=>{el.classList.toggle('active',tabs[i]===t);el.setAttribute('aria-pressed',String(tabs[i]===t))});
   tabs.forEach(x=>{const section=document.getElementById('chart-'+x);if(section)section.style.display=x===t?'block':'none'});
   renderCharts();
 }
 
 function renderCharts(){
+  if(currentChartTab==='timing'){renderMonthlyInsights(DB.sales);return;}
   const s=DB.sales.filter(isActiveSale);
   if(currentChartTab==='monthly'){
     const months={};
@@ -2103,7 +2104,7 @@ function renderCharts(){
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{stepSize:1}}}}
     });
 
-    const points=sortSalesNewest(s).slice(0,120).map(sale=>({x:+realizedRevenue(sale).toFixed(2),y:+profit(sale).toFixed(2),product:cat(sale.art)}));
+    const points=[...s].sort(sortSalesNewest).slice(0,120).map(sale=>({x:+realizedRevenue(sale).toFixed(2),y:+profit(sale).toFixed(2),product:cat(sale.art)}));
     createChart('priceProfitChart',{
       type:'scatter',
       data:{datasets:[{label:'Verkauf',data:points,backgroundColor:'#1D9E75'}]},

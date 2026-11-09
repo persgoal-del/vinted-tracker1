@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="./icon.svg">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.33.0/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="stylesheet" href="./styles.css?v=0db2ca1">
+<link rel="stylesheet" href="./styles.css?v=monthly-1">
 </head>
 <body>
 <div id="app-splash" class="app-splash" aria-hidden="true">
@@ -253,13 +253,31 @@
       <!-- DIAGRAMME -->
       <div id="page-charts" class="page">
         <div class="tab-bar">
-          <div class="tab active" onclick="switchChartTab('monthly')">Monatlich</div>
+          <button type="button" class="tab active" onclick="switchChartTab('timing')">Monatsrhythmus</button>
+          <button type="button" class="tab" onclick="switchChartTab('monthly')">Monatlich</button>
           <div class="tab" onclick="switchChartTab('product')">Pro Produkt</div>
           <div class="tab" onclick="switchChartTab('margin')">Margen</div>
           <div class="tab" onclick="switchChartTab('status')">Status</div>
           <div class="tab" onclick="switchChartTab('patterns')">Muster</div>
         </div>
-        <div id="chart-monthly">
+        <div id="chart-timing">
+          <div class="rhythm-heading"><div><h3>Wann läuft dein Verkauf am besten?</h3><p class="muted">Entdecke starke Tage und Muster innerhalb des Monats.</p></div></div>
+          <div class="rhythm-controls">
+            <div class="form-group"><label for="rhythm-month">Zeitraum</label><select id="rhythm-month" onchange="renderMonthlyInsights(DB.sales)"><option value="all">Gesamter Zeitraum</option></select></div>
+            <div class="form-group"><label for="rhythm-metric">Vergleichen nach</label><select id="rhythm-metric" onchange="renderMonthlyInsights(DB.sales)"><option value="revenue">Umsatz</option><option value="profit">Gewinn</option><option value="count">Verkäufe</option></select></div>
+          </div>
+          <p id="rhythm-note" class="rhythm-note"></p>
+          <div id="rhythm-summary" class="metric-grid" aria-live="polite"></div>
+          <p id="rhythm-chart-fallback" class="rhythm-note" hidden>Die Diagramme sind gerade nicht verfügbar. Alle Werte findest du weiterhin in den Tabellen.</p>
+          <div class="card"><h3 class="card-title">Dein Monatsprofil · 1. bis 31.</h3><p class="rhythm-note">Durchschnitt pro Kalendertag. Tippe auf einen Balken für Wert und Datenbasis.</p>
+            <div class="chart-wrap rhythm-chart"><canvas id="rhythmDayChart" role="img" aria-label="Tagesprofil"></canvas></div>
+            <details class="rhythm-details"><summary>Alle Tageswerte anzeigen</summary><div class="table-wrap"><table class="rhythm-table"><thead><tr><th>Tag im Monat</th><th>Ø pro Tag</th><th>Beobachtete Tage</th></tr></thead><tbody id="rhythm-day-values"></tbody></table></div></details>
+          </div>
+          <div class="card"><h3 class="card-title">Anfang, Mitte oder Ende?</h3><p id="rhythm-phase-caption" class="rhythm-note"></p><div class="chart-wrap rhythm-chart"><canvas id="rhythmPhaseChart" role="img" aria-label="Monatsphasen"></canvas></div><div id="rhythm-phase-values"></div></div>
+          <div class="card"><h3 class="card-title">Die besten Tage je Monat</h3><p class="rhythm-note">Der höchste Tageswert pro Monat. Bei Gleichstand werden alle besten Tage genannt. Tage ohne Verkauf werden nicht als Gewinner geführt.</p><div class="table-wrap"><table class="rhythm-table"><thead><tr><th>Monat</th><th>Bester Tag</th><th id="rhythm-best-label">Umsatz am besten Tag</th><th>Datenbasis</th></tr></thead><tbody id="rhythm-best-months"></tbody></table></div></div>
+          <details class="rhythm-details"><summary>So wird gerechnet</summary><p id="rhythm-method" class="rhythm-note"></p></details>
+        </div>
+        <div id="chart-monthly" style="display:none">
           <div class="card">
             <div class="card-title">Monatlicher Umsatz & Gewinn</div>
             <div class="chart-wrap" style="height:280px"><canvas id="monthlyChart" role="img" aria-label="Monatlicher Umsatz"></canvas></div>
@@ -583,6 +601,7 @@
 
 <script src="./storage.js"></script>
 <script src="./calculations.js"></script>
-<script src="./app.js"></script>
+<script src="./insights.js?v=monthly-1"></script>
+<script src="./app.js?v=monthly-1"></script>
 </body>
 </html>
