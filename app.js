@@ -2031,7 +2031,7 @@ function deleteExp(id){
 let currentChartTab='timing';
 function switchChartTab(t){
   currentChartTab=t;
-  const tabs=['timing','monthly','product','margin','status','patterns'];
+  const tabs=['timing','forecast','calendar','monthly','product','margin','status','patterns'];
   document.querySelectorAll('#page-charts .tab').forEach((el,i)=>{el.classList.toggle('active',tabs[i]===t);el.setAttribute('aria-pressed',String(tabs[i]===t))});
   tabs.forEach(x=>{const section=document.getElementById('chart-'+x);if(section)section.style.display=x===t?'block':'none'});
   renderCharts();
@@ -2039,6 +2039,8 @@ function switchChartTab(t){
 
 function renderCharts(){
   if(currentChartTab==='timing'){renderMonthlyInsights(DB.sales);return;}
+  if(currentChartTab==='forecast'){renderForecastView(DB.sales);return;}
+  if(currentChartTab==='calendar'){renderCalendarView(DB.sales);return;}
   const s=DB.sales.filter(isActiveSale);
   if(currentChartTab==='monthly'){
     const months={};

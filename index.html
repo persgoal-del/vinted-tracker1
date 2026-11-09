@@ -254,6 +254,8 @@
       <div id="page-charts" class="page">
         <div class="tab-bar">
           <button type="button" class="tab active" onclick="switchChartTab('timing')">Monatsrhythmus</button>
+          <button type="button" class="tab" onclick="switchChartTab('forecast')">Prognose</button>
+          <button type="button" class="tab" onclick="switchChartTab('calendar')">Kalender</button>
           <button type="button" class="tab" onclick="switchChartTab('monthly')">Monatlich</button>
           <div class="tab" onclick="switchChartTab('product')">Pro Produkt</div>
           <div class="tab" onclick="switchChartTab('margin')">Margen</div>
@@ -276,6 +278,16 @@
           <div class="card"><h3 class="card-title">Anfang, Mitte oder Ende?</h3><p id="rhythm-phase-caption" class="rhythm-note"></p><div class="chart-wrap rhythm-chart"><canvas id="rhythmPhaseChart" role="img" aria-label="Monatsphasen"></canvas></div><div id="rhythm-phase-values"></div></div>
           <div class="card"><h3 class="card-title">Die besten Tage je Monat</h3><p class="rhythm-note">Der höchste Tageswert pro Monat. Bei Gleichstand werden alle besten Tage genannt. Tage ohne Verkauf werden nicht als Gewinner geführt.</p><div class="table-wrap"><table class="rhythm-table"><thead><tr><th>Monat</th><th>Bester Tag</th><th id="rhythm-best-label">Umsatz am besten Tag</th><th>Datenbasis</th></tr></thead><tbody id="rhythm-best-months"></tbody></table></div></div>
           <details class="rhythm-details"><summary>So wird gerechnet</summary><p id="rhythm-method" class="rhythm-note"></p></details>
+        </div>
+        <div id="chart-forecast" style="display:none">
+          <div class="rhythm-heading"><div><h3>Verkaufsprognose</h3><p class="muted">Hochrechnung deines bisherigen Tempos bis zum Monatsende.</p></div></div>
+          <p id="forecast-note" class="rhythm-note"></p><div id="forecast-summary" class="metric-grid"></div>
+          <div class="card"><div class="card-title">Monatsverlauf und Prognose</div><div class="chart-wrap rhythm-chart"><canvas id="forecastChart" role="img" aria-label="Umsatzverlauf und Monatsprognose"></canvas></div></div>
+        </div>
+        <div id="chart-calendar" style="display:none">
+          <div class="rhythm-heading"><div><h3>Verkaufskalender</h3><p class="muted">Jeder Tag zeigt Umsatz und Anzahl deiner Verkäufe.</p></div></div>
+          <div class="rhythm-controls"><div class="form-group"><label for="calendar-month">Monat</label><input type="month" id="calendar-month" onchange="renderCalendarView(DB.sales)"></div></div>
+          <p id="calendar-summary" class="rhythm-note"></p><div class="card"><div id="calendar-grid" class="calendar-grid" aria-label="Verkaufskalender"></div></div>
         </div>
         <div id="chart-monthly" style="display:none">
           <div class="card">
@@ -602,6 +614,7 @@
 <script src="./storage.js"></script>
 <script src="./calculations.js"></script>
 <script src="./insights.js?v=monthly-1"></script>
+<script src="./forecast-calendar.js?v=monthly-2"></script>
 <script src="./app.js?v=monthly-1"></script>
 </body>
 </html>
